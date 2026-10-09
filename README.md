@@ -11,10 +11,40 @@ A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, 
 | **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 24 of 48 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
 
 Every item has **Pass / Fail / Look / N/A / To do** buttons and a note. Items that fail or need a look
-get **Fix: Approve / Decline**, so a round of fixes can be signed off item by item. **Report** opens a
+get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the approved ones with a backup
+first (see below). **Report** opens a
 Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
 Elementor and YOOtheme sections are kept but marked N/A automatically unless the site uses them.
+
+## Fixing approved items
+
+1. **Run Tool** finds the issues (read-only).
+2. Tick **Approve** (or Decline) on failed and flagged items. Add a note where a fix needs a value,
+   e.g. the new login slug for "Hide the login URL" or the new name for "Uncategorized".
+3. **Apply approved fixes (N)** opens a confirmation window that lists, before anything happens:
+   the backup, every automatic fix with exactly what it will do, and the items that will go to a
+   fix request. Nothing runs until you tick the confirmation and press the button.
+4. The fix run then:
+   - **backs up first** to `_wpeprivate/wpeqa-backups/<run>/` on the server: the database
+     (`db.sql.gz`), the active theme (`theme.tgz`), the plugins folder when plugin updates are
+     approved, the plugin list and the WordPress version. If the backup fails, nothing is changed.
+   - applies the **automatic fixes** over SSH/WP-CLI, logging each command's output;
+   - clears caches (WordPress, WP Engine, WP Rocket if present);
+   - **re-runs the tab's checks**, so each fix is marked **Fixed · verified** or **Fix applied ·
+     still flagged** (or **Fix failed**);
+   - writes a **fix request** for approved items the app can't fix safely (theme code, content,
+     judgment calls). Copy it from **Fix history and backups** and hand it to Claude or a developer.
+5. **Fix history and backups** lists every fix run with its backup path and **Copy restore
+   commands** (database import + theme/plugins restore).
+
+Automatic fixes (everything else goes to the fix request): turn comments off · search engine
+visibility on/off · rename "Uncategorized" · trash Hello World / Sample Page · permalinks to post
+name · install WP Activity Log · install WPS Hide Login with the slug from the note · update plugins ·
+update WordPress core · set the admin email · replace the staging domain in the database
+(`wp search-replace`, dry run first, GUIDs untouched). They live in `lib/fixers.mjs`.
+
+Plain **Run Tool** runs never change the site, so they don't take a backup.
 
 ## Requirements
 
@@ -36,7 +66,7 @@ before `.wpenginepowered.com`). The app only listens on this Mac (127.0.0.1).
 
 ## What Run Tool touches
 
-Everything is **read-only**:
+Run Tool is **read-only** (fix runs are separate, below):
 
 - Over SSH it runs one `wp eval-file` that reads settings, plugins, users, posts and options and
   prints them as JSON. It changes nothing. (It does ask WordPress to refresh its plugin/core
@@ -78,6 +108,8 @@ lib/wpe.mjs             SSH + WP-CLI facts (read-only)
 lib/crawl.mjs           sitemap discovery and Chrome page snapshots
 lib/checks.mjs          every automatic check
 lib/run.mjs             runs a tab: loads data once, runs its checks, writes results
+lib/fixers.mjs          automatic fixes for approved items + fix request text
+lib/fixrun.mjs          fix run: backup, fixes, cache clear
 lib/lighthouse.mjs      Lighthouse phone + desktop
 lib/store.mjs           sites, checklist state, run history (data/)
 lib/report.mjs          Markdown report

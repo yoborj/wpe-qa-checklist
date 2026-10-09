@@ -8,6 +8,9 @@ const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag)
 const api = async (path, opts = {}) => { const r = await fetch('/api' + path, { headers: { 'content-type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
 const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString(); };
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
+const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request' };
+const copy = async (text, btn) => { try { await navigator.clipboard.writeText(text); const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500); } catch { prompt('Copy this:', text); } };
+const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
 let templates = {}, sites = [], current = null, data = null, tab = store.get('wpeqa.tab') || 'qa-swarm', filter = 'all', stream = null;
@@ -55,6 +58,9 @@ function render() {
   $('lastRun').textContent = last ? `Last run ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
   $('reportLink').href = `/api/sites/${current.id}/report/${tab}`;
   $('runTool').textContent = `Run Tool`;
+  const pend = pendingFixes(tab).length;
+  $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Apply approved fixes (${pend})`;
+  renderHistory();
   $('runTool').title = `Run the automatic ${tpl.title} checks on ${current.name}`;
 
   const items = tpl.sections.flatMap(s => s.items);
@@ -86,7 +92,7 @@ function itemRow(it) {
       el('p', { class: 'item-desc', text: it.description }),
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
       details),
-    el('div', { class: 'item-side' }, seg, src),
+    el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: FIXSTATE[s.fix.state] || s.fix.state }) : null),
     el('div', { class: 'item-extra' }, note, fix));
 }
 
@@ -99,7 +105,7 @@ function applyFilter() {
   document.querySelectorAll('.section').forEach(s => { s.hidden = !s.querySelector('.item:not(.hidden-by-filter)'); });
 }
 
-function setRunning(on) { $('runTool').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
+function setRunning(on) { $('runTool').disabled = on; $('applyFixes').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
 
 function follow(runId) {
   if (stream) stream.close();
@@ -148,6 +154,48 @@ $('siteForm').addEventListener('submit', async e => {
 $('deleteSite').addEventListener('click', async () => {
   if (!confirm(`Remove ${current.name} from the checklist app? Its saved checklist state and run history stay in the data folder.`)) return;
   await api('/sites/' + current.id, { method: 'DELETE' }); $('siteDialog').close(); await loadSites();
+});
+
+// Fix history: each fix run with its backup, restore commands and fix request.
+function renderHistory() {
+  const runs = tabState(tab).fixRuns || [];
+  $('fixHistory').hidden = !runs.length;
+  $('fixRuns').replaceChildren(...runs.map(r => {
+    const states = Object.entries(r.states || {}).map(([k, v]) => `${v} ${FIXSTATE[k]?.toLowerCase() || k}`).join(' · ');
+    const restore = el('button', { class: 'btn ghost', type: 'button', text: 'Copy restore commands', onclick: e => copy(r.backup.restore.join('\n'), e.target) });
+    const reqLink = r.request ? el('a', { class: 'btn ghost', href: `/api/sites/${current.id}/fix-request/${r.id}`, target: '_blank', rel: 'noopener', text: 'Open fix request' }) : null;
+    const reqCopy = r.request ? el('button', { class: 'btn ghost', type: 'button', text: 'Copy fix request', onclick: async e => { const t = await (await fetch(`/api/sites/${current.id}/fix-request/${r.id}`)).text(); copy(t, e.target); } }) : null;
+    return el('div', { class: 'fixrun' },
+      el('div', {}, el('b', { text: new Date(r.finishedAt).toLocaleString() }), ` · ${states}`),
+      r.backup ? el('div', {}, 'Backup: ', el('code', { text: r.backup.path }), r.backup.size ? ` (${r.backup.size})` : '') : el('div', { class: 'muted', text: 'No backup (no changes were made; fix request only).' }),
+      el('div', { class: 'row' }, r.backup ? restore : null, reqLink, reqCopy));
+  }));
+}
+
+// Apply approved fixes: second approval in a modal, then a backed-up fix run.
+$('applyFixes').addEventListener('click', async () => {
+  $('fixErr').hidden = true; $('fixConfirm').checked = false; $('fixGo').disabled = true;
+  let plan;
+  try { plan = await api(`/sites/${current.id}/fix/${tab}/plan`); } catch (e) { return alert(e.message); }
+  const auto = plan.auto.length, man = plan.manual.length;
+  $('fixSite').textContent = `${current.name} · ${plan.url}${plan.install ? ` · WP Engine install ${plan.install}` : ''} · ${templates[tab].title}`;
+  $('fixBackupSec').hidden = !auto;
+  $('fixBackup').textContent = `The database and active theme${plan.backupPlugins ? ', plus the plugins folder,' : ''} are saved on the server in _wpeprivate/wpeqa-backups/ before anything changes. If the backup fails, nothing is changed.`;
+  $('fixAutoSec').hidden = !auto; $('fixAfterSec').hidden = !auto;
+  $('fixAutoTitle').textContent = `2. Automatic fixes (${auto})`;
+  $('fixAuto').replaceChildren(...plan.auto.map(a => el('li', {}, el('b', { text: a.title }), el('small', { text: a.action }))));
+  $('fixManualSec').hidden = !man;
+  $('fixManualTitle').textContent = `Fix request for a developer (${man})`;
+  $('fixManual').replaceChildren(...plan.manual.map(m => el('li', {}, el('b', { text: m.title }), el('small', { text: m.reason }))));
+  $('fixConfirmText').textContent = auto ? `I approve these ${auto} change${auto === 1 ? '' : 's'} on ${plan.url} now.` : `Create the fix request (nothing on the site changes).`;
+  $('fixGo').textContent = auto ? `Back up and apply ${auto} fix${auto === 1 ? '' : 'es'}` : 'Create fix request';
+  $('fixDialog').showModal();
+});
+$('fixConfirm').addEventListener('change', e => { $('fixGo').disabled = !e.target.checked; });
+$('fixCancel').addEventListener('click', () => $('fixDialog').close());
+$('fixGo').addEventListener('click', async () => {
+  try { $('fixGo').disabled = true; const r = await api(`/sites/${current.id}/fix/${tab}`, { method: 'POST', body: { confirm: true } }); $('fixDialog').close(); follow(r.runId); }
+  catch (e) { $('fixErr').textContent = e.message; $('fixErr').hidden = false; $('fixGo').disabled = false; }
 });
 
 boot().catch(e => { document.body.prepend(el('p', { class: 'err', text: 'Could not load: ' + e.message })); });

@@ -106,6 +106,28 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 60px; }
 .fix button[aria-pressed="true"][data-d="approve"] { background: var(--pass); border-color: var(--pass); color: #fff; }
 .fix button[aria-pressed="true"][data-d="decline"] { background: var(--fail); border-color: var(--fail); color: #fff; }
 .hidden-by-filter { display: none; }
+.btn.fixbtn { border-color: var(--pass); color: var(--pass); }
+.fixstate { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.fs-verified { background: var(--pass-soft); color: var(--pass); } .fs-applied { background: var(--warn-soft); color: var(--warn); }
+.fs-failed { background: var(--fail-soft); color: var(--fail); } .fs-manual { background: var(--accent-soft); color: var(--accent); }
+.history { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; }
+.history summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+.fixrun { border-top: 1px solid var(--line); padding: 10px 0 4px; display: grid; gap: 6px; font-size: 13.5px; }
+.fixrun:first-child { border-top: 0; }
+.fixrun code { word-break: break-all; }
+.fixrun .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fixdlg { display: grid; gap: 14px; padding: 20px; max-height: 85vh; overflow: auto; }
+.fixdlg h2 { margin: 0; color: var(--ink); }
+.fixdlg h3 { margin: 0 0 4px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.fixdlg section p, .fixdlg ol, .fixdlg ul { margin: 0; }
+.fixdlg ol, .fixdlg ul { padding-left: 20px; display: grid; gap: 6px; }
+.fixdlg li b { color: var(--ink); }
+.fixdlg li small { display: block; color: var(--faint); }
+.fixsite { margin: -6px 0 0; color: var(--faint); }
+.muted { color: var(--faint); font-size: 13.5px; margin-bottom: 6px !important; }
+.confirm { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-weight: 600; }
+.confirm input { margin-top: 3px; }
+#fixDialog { width: min(620px, calc(100vw - 32px)); }
 
 dialog { border: 1px solid var(--line-2); border-radius: 12px; padding: 0; background: var(--surface); color: var(--body); width: min(480px, calc(100vw - 32px)); }
 dialog::backdrop { background: rgba(10, 14, 20, .45); }
