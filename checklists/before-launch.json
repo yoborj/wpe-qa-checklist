@@ -1,0 +1,1203 @@
+{
+ "id": "before-launch",
+ "title": "QA — Before Launch",
+ "source": "QA — Before Launch",
+ "sections": [
+  {
+   "id": "basic-checklist",
+   "title": "Basic Checklist",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "basic-checklist--set-up-the-homepage",
+     "row": 3,
+     "title": "Set up the homepage",
+     "description": "A static page is set as the homepage under Settings → Reading.",
+     "owner": "Claude",
+     "check": "wp.homepage"
+    },
+    {
+     "id": "basic-checklist--set-up-the-blog-posts-page",
+     "row": 4,
+     "title": "Set up the blog posts page",
+     "description": "If the site has a blog, a page is assigned to list the posts under Settings → Reading.",
+     "owner": "Claude",
+     "check": "wp.postsPage"
+    },
+    {
+     "id": "basic-checklist--favicon",
+     "row": 5,
+     "title": "Favicon",
+     "description": "A favicon (site icon) is installed and shows in browser tabs.",
+     "owner": "Claude",
+     "check": "html.favicon"
+    },
+    {
+     "id": "basic-checklist--browser-compatibility",
+     "row": 6,
+     "title": "Browser compatibility",
+     "description": "The site displays correctly in Chrome, Firefox, Safari, Brave, and Edge.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "basic-checklist--passwords-saved",
+     "row": 7,
+     "title": "Passwords saved",
+     "description": "All site credentials are stored in the password management tool.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "basic-checklist--client-communication",
+     "row": 8,
+     "title": "Client communication",
+     "description": "The Website Transfer Agreement has been sent to the client.",
+     "owner": "Account Manager",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "site-content",
+   "title": "Site Content",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "site-content--images-titles-and-alt-text",
+     "row": 10,
+     "title": "Images, titles, and alt text",
+     "description": "All images load correctly and have title and alt text where relevant.",
+     "owner": "Claude",
+     "check": "crawl.imageAlt"
+    },
+    {
+     "id": "site-content--custom-404-page",
+     "row": 11,
+     "title": "Custom 404 page",
+     "description": "A custom 404 page is in place to guide lost visitors back into the site.",
+     "owner": "Claude",
+     "check": "http.custom404"
+    },
+    {
+     "id": "site-content--no-dummy-content",
+     "row": 12,
+     "title": "No dummy content",
+     "description": "All Lorem Ipsum, placeholder images, and unused pages or posts have been removed.",
+     "owner": "Claude",
+     "check": "crawl.dummyContent"
+    },
+    {
+     "id": "site-content--social-profiles-configured",
+     "row": 13,
+     "title": "Social profiles configured",
+     "description": "All social media profiles are correctly displayed and linked across the site.",
+     "owner": "Claude",
+     "check": "crawl.socialLinks"
+    },
+    {
+     "id": "site-content--grammar-and-spelling-report",
+     "row": 14,
+     "title": "Grammar and spelling report",
+     "description": "A grammar and spelling audit has been run and the results saved to a spreadsheet.",
+     "owner": "SEO",
+     "check": null
+    },
+    {
+     "id": "site-content--proofread-audit-reviewed",
+     "row": 15,
+     "title": "Proofread audit reviewed",
+     "description": "All spelling and grammar errors found in the audit have been fixed.",
+     "owner": "SEO",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "ctas-and-links",
+   "title": "CTAs and Links",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "ctas-and-links--clickable-phone-numbers",
+     "row": 17,
+     "title": "Clickable phone numbers",
+     "description": "Every phone number on the site is a tap-to-call link.",
+     "owner": "Claude",
+     "check": "crawl.phonesClickable"
+    },
+    {
+     "id": "ctas-and-links--no-in-dropdown-menus",
+     "row": 18,
+     "title": "No #! in dropdown menus",
+     "description": "No menu link points to a dead '#' or '#!' anchor.",
+     "owner": "Claude",
+     "check": "crawl.deadMenuLinks"
+    },
+    {
+     "id": "ctas-and-links--navigation-menu-links",
+     "row": 19,
+     "title": "Navigation menu links",
+     "description": "All menu links, parent and child, work and open the correct page.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "ctas-and-links--internal-links",
+     "row": 20,
+     "title": "Internal links",
+     "description": "Every link on the homepage points to a real destination, with none left blank.",
+     "owner": "Claude",
+     "check": "crawl.internalLinks"
+    }
+   ]
+  },
+  {
+   "id": "dynamic-information",
+   "title": "Dynamic Information",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "dynamic-information--main-phone-number-provided",
+     "row": 22,
+     "title": "Main phone number provided",
+     "description": "The client has provided the main phone number to use across the site.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "dynamic-information--phone-number-not-hard-coded",
+     "row": 23,
+     "title": "Phone number not hard-coded",
+     "description": "The phone number is editable in one place (e.g. Theme Options) and updates site-wide, rather than being hard-coded per page.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "dynamic-information--phone-number-consistency",
+     "row": 24,
+     "title": "Phone number consistency",
+     "description": "The same, correct phone number is used consistently across the whole site.",
+     "owner": "Claude",
+     "check": "crawl.phoneConsistency"
+    },
+    {
+     "id": "dynamic-information--address-easily-editable",
+     "row": 25,
+     "title": "Address easily editable",
+     "description": "Physical addresses are editable in one place (Theme Options or header/footer) and update across the site.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "dynamic-information--dynamic-fields-display-correctly",
+     "row": 26,
+     "title": "Dynamic fields display correctly",
+     "description": "Information pulled from a post's Custom Fields shows correctly and in the right place on every layout.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "dynamic-information--layout-holds-with-dynamic-data",
+     "row": 27,
+     "title": "Layout holds with dynamic data",
+     "description": "Sections using Custom Post Types or Custom Fields (testimonials, team members, etc.) keep their layout with content of any size.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "contact-form",
+   "title": "Contact Form",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "contact-form--notification-email-provided",
+     "row": 29,
+     "title": "Notification email provided",
+     "description": "The client has provided the email address that form notifications should be sent to.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "contact-form--contact-forms-configured",
+     "row": 30,
+     "title": "Contact forms configured",
+     "description": "All forms have the right fields with correct names, IDs, and required settings.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "contact-form--notification-email-delivered",
+     "row": 31,
+     "title": "Notification email delivered",
+     "description": "Form submissions deliver a notification email to the correct address.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "contact-form--form-fields-in-notification-email",
+     "row": 32,
+     "title": "Form fields in notification email",
+     "description": "The notification email lists all form fields and uses HTML content type.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "contact-form--inline-form-validation",
+     "row": 33,
+     "title": "Inline form validation",
+     "description": "Forms validate in real time, flagging input errors before the user submits.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "contact-form--form-success-message",
+     "row": 34,
+     "title": "Form success message",
+     "description": "A clear confirmation message appears after a successful form submission.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "mobile",
+   "title": "Mobile",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "mobile--mobile-menu",
+     "row": 36,
+     "title": "Mobile menu",
+     "description": "The mobile menu looks correct — colors aren't inverted and the hamburger icon shows.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "mobile--mobile-centering",
+     "row": 37,
+     "title": "Mobile centering",
+     "description": "Elements are centered on mobile wherever left alignment looks off.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "mobile--mobile-navbar-height",
+     "row": 38,
+     "title": "Mobile navbar height",
+     "description": "The mobile navbar is no taller than 82px.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "mobile--mobile-nav-menu",
+     "row": 39,
+     "title": "Mobile nav menu",
+     "description": "Make sure every navigation menu looks good on mobile. Use the styling from Sierra Health + Wellness as our standard for all sites, now and going forward.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "mobile--parent-pages-clickable-on-mobile",
+     "row": 40,
+     "title": "Parent pages clickable on mobile",
+     "description": "Parent menu items are reachable as links in the mobile dropdown, not just toggles.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "migration-checklist",
+   "title": "Migration Checklist",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "migration-checklist--old-integrations-transferred",
+     "row": 42,
+     "title": "Old integrations transferred",
+     "description": "Every third-party integration from the old site (e.g. HubSpot) has been carried over.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--migrate-301-redirects",
+     "row": 43,
+     "title": "Migrate 301 redirects",
+     "description": "All existing 301 redirects have been exported from the old site and imported into the new one.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--keep-the-same-url-structure",
+     "row": 44,
+     "title": "Keep the same URL structure",
+     "description": "URLs meant to stay the same keep their original structure and slug.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--compare-old-and-new-urls",
+     "row": 45,
+     "title": "Compare old and new URLs",
+     "description": "All important URLs from the old site are present on the new site.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--301-redirects-for-changed-urls",
+     "row": 46,
+     "title": "301 redirects for changed URLs",
+     "description": "Any URL that changed or was removed has a 301 redirect to its new location.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--migrate-yoast-settings",
+     "row": 47,
+     "title": "Migrate Yoast settings",
+     "description": "Page and post titles, meta descriptions, and other Yoast settings carry over to the new site. https://wordpress.org/plugins/wordpress-seo/",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--migrate-header-footer-codes",
+     "row": 48,
+     "title": "Migrate header/footer codes",
+     "description": "All still-relevant header and footer codes from the old site are copied to the new one.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "migration-checklist--add-google-tag-manager",
+     "row": 49,
+     "title": "Add Google Tag Manager",
+     "description": "The Google Tag Manager container is added on staging for the AM to verify in the source.",
+     "owner": "Devs",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "wordpress-settings",
+   "title": "WordPress Settings",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "wordpress-settings--correct-wordpress-admin-email",
+     "row": 51,
+     "title": "Correct WordPress admin email",
+     "description": "The site admin email is developer@example.com, with a matching Administrator user added to the password sheet.",
+     "owner": "Claude",
+     "check": "wp.adminEmail"
+    },
+    {
+     "id": "wordpress-settings--staging-is-not-indexable",
+     "row": 52,
+     "title": "Staging is not indexable",
+     "description": "Search engine visibility is switched off while the site is in development.",
+     "owner": "Claude",
+     "check": "wp.stagingNoindex"
+    }
+   ]
+  },
+  {
+   "id": "website-optimization",
+   "title": "Website Optimization",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "website-optimization--review-plugins",
+     "row": 54,
+     "title": "Review plugins",
+     "description": "Unused plugins are deleted and all remaining plugins are updated.",
+     "owner": "Devs",
+     "check": "wp.plugins"
+    },
+    {
+     "id": "website-optimization--wp-engine-advanced-network",
+     "row": 55,
+     "title": "WP Engine Advanced Network",
+     "description": "WP Engine's Advanced Network is enabled for better performance (requires WP Engine hosting and DNS access).",
+     "owner": "Devs",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "security-and-updates",
+   "title": "Security and Updates",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "security-and-updates--migrated-to-wp-engine",
+     "row": 57,
+     "title": "Migrated to WP Engine",
+     "description": "The site is migrated to the correct (Account Manager's) WP Engine account.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "security-and-updates--access-to-website-backups",
+     "row": 58,
+     "title": "Access to website backups",
+     "description": "The site is backed up and previous backups are accessible on WP Engine.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "security-and-updates--comments-turned-off",
+     "row": 59,
+     "title": "Comments turned off",
+     "description": "Comments are disabled site-wide to prevent spam, unless genuinely needed.",
+     "owner": "Claude",
+     "check": "wp.comments"
+    },
+    {
+     "id": "security-and-updates--wordpress-up-to-date",
+     "row": 60,
+     "title": "WordPress up to date",
+     "description": "WordPress core is updated to the latest version.",
+     "owner": "Claude",
+     "check": "wp.coreUpdate"
+    },
+    {
+     "id": "security-and-updates--hide-the-login-url",
+     "row": 61,
+     "title": "Hide the login URL",
+     "description": "The WPS Hide Login plugin is installed and the default admin URL is changed to backend-login to deter brute-force attacks. https://wordpress.org/plugins/wps-hide-login/",
+     "owner": "Tech Lead",
+     "check": "wp.hideLogin"
+    },
+    {
+     "id": "security-and-updates--install-activity-log-plugin",
+     "row": 62,
+     "title": "Install activity log plugin",
+     "description": "The WP Activity Log plugin is installed. https://wordpress.org/plugins/wp-security-audit-log/",
+     "owner": "Tech Lead",
+     "check": "wp.activityLog"
+    }
+   ]
+  },
+  {
+   "id": "website-layout",
+   "title": "Website Layout",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "website-layout--sticky-header-bar",
+     "row": 64,
+     "title": "Sticky header bar",
+     "description": "The site has a sticky header on both desktop and mobile.",
+     "owner": "Tech Lead",
+     "check": "browser.stickyHeader"
+    },
+    {
+     "id": "website-layout--sticky-bottom-bar",
+     "row": 65,
+     "title": "Sticky bottom bar",
+     "description": "A bottom sticky bar is present with a properly styled phone number, e.g. (888) 888-8888.",
+     "owner": "Tech Lead",
+     "check": "browser.stickyBottomBar"
+    },
+    {
+     "id": "website-layout--heroes-fit-on-mobile",
+     "row": 66,
+     "title": "Heroes fit on mobile",
+     "description": "Hero sections show all their content correctly on a small screen (iPhone X).",
+     "owner": "Tech Lead",
+     "check": "browser.mobileFit"
+    },
+    {
+     "id": "website-layout--home-not-in-navbar",
+     "row": 67,
+     "title": "Home not in navbar",
+     "description": "The navigation menu does not include a 'Home' item.",
+     "owner": "Claude",
+     "check": "html.noHomeInNav"
+    },
+    {
+     "id": "website-layout--blog-layout-matches-site",
+     "row": 68,
+     "title": "Blog layout matches site",
+     "description": "The Blog archive and Single Post templates match the overall site design.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "website-layout--category-layout-matches-site",
+     "row": 69,
+     "title": "Category layout matches site",
+     "description": "Category archive pages match the overall site design.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "website-layout--template-hero-from-featured-image",
+     "row": 70,
+     "title": "Template hero from featured image",
+     "description": "Template-based pages pull their hero/header image from the page's Featured Image.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "website-layout--link-colors-on-brand-and-visible",
+     "row": 71,
+     "title": "Link colors on-brand and visible",
+     "description": "Hyperlinks are a clearly different color from the body text (not the same dark/black) so they stand out — check inner/child pages too.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "seo-checklist",
+   "title": "SEO Checklist",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "seo-checklist--permalinks-optimized",
+     "row": 73,
+     "title": "Permalinks optimized",
+     "description": "Permalinks and URLs are clean and optimized for SEO.",
+     "owner": "SEO",
+     "check": "wp.permalinks"
+    },
+    {
+     "id": "seo-checklist--yoast-seo-configured",
+     "row": 74,
+     "title": "Yoast SEO configured",
+     "description": "Yoast is configured with a title separator and the site title set. https://wordpress.org/plugins/wordpress-seo/",
+     "owner": "SEO",
+     "check": "wp.yoast"
+    },
+    {
+     "id": "seo-checklist--run-a-page-speed-audit",
+     "row": 75,
+     "title": "Run a page speed audit",
+     "description": "A speed and performance check has been run on the main pages.",
+     "owner": "SEO",
+     "check": "lighthouse.home"
+    },
+    {
+     "id": "seo-checklist--open-graph-tags",
+     "row": 76,
+     "title": "Open Graph tags",
+     "description": "Open Graph and Twitter Card tags are installed for rich link previews.",
+     "owner": "Devs",
+     "check": "html.openGraph"
+    }
+   ]
+  },
+  {
+   "id": "design-and-ux",
+   "title": "Design and UX",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "design-and-ux--nav-menu-has-all-key-pages",
+     "row": 78,
+     "title": "Nav menu has all key pages",
+     "description": "The navigation menu links to all key pages so users can find what they need.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "design-and-ux--consistent-navigation",
+     "row": 79,
+     "title": "Consistent navigation",
+     "description": "The navigation menu is identical across every page that has it.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "design-and-ux--logo-links-to-homepage",
+     "row": 80,
+     "title": "Logo links to homepage",
+     "description": "The header logo is a clickable link back to the homepage.",
+     "owner": "Claude",
+     "check": "html.logoHomeLink"
+    },
+    {
+     "id": "design-and-ux--two-font-families-or-fewer",
+     "row": 81,
+     "title": "Two font families or fewer",
+     "description": "The design uses no more than two font families.",
+     "owner": "Tech Lead",
+     "check": "browser.fontFamilies"
+    },
+    {
+     "id": "design-and-ux--fonts-legible-in-all-styles",
+     "row": 82,
+     "title": "Fonts legible in all styles",
+     "description": "Fonts stay clear and legible in all forms — caps, italics, bold, etc.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "design-and-ux--consistent-font-styles",
+     "row": 83,
+     "title": "Consistent font styles",
+     "description": "Font styles and sizes are consistent across all pages.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "design-and-ux--consistent-branding",
+     "row": 84,
+     "title": "Consistent branding",
+     "description": "The brand's look, feel, colors, and messaging are consistent across the site.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "design-and-ux--consistent-layout",
+     "row": 85,
+     "title": "Consistent layout",
+     "description": "The layout is consistent across all pages for predictable, easy navigation.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "design-and-ux--images-fit-the-content",
+     "row": 86,
+     "title": "Images fit the content",
+     "description": "Images suit both the brand style and the content they accompany; note any mismatches.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "new-items",
+   "title": "New Items",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "new-items--site-title-and-tagline-set",
+     "row": 88,
+     "title": "Site title and tagline set",
+     "description": "The site title and tagline are set.",
+     "owner": "Claude",
+     "check": "wp.titleTagline"
+    },
+    {
+     "id": "new-items--search-page",
+     "row": 89,
+     "title": "Search page",
+     "description": "Confirm whether the site has a search page.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "new-items--dummy-data-drafted",
+     "row": 90,
+     "title": "Dummy data drafted",
+     "description": "Anything containing dummy data is set to draft.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "new-items--rename-default-blog-category",
+     "row": 91,
+     "title": "Rename default blog category",
+     "description": "The default 'Uncategorized' blog category has been renamed.",
+     "owner": "Tech Lead",
+     "check": "wp.uncategorized"
+    },
+    {
+     "id": "new-items--set-real-post-authors",
+     "row": 92,
+     "title": "Set real post authors",
+     "description": "Posts are assigned to a real author, not the 'dev' user.",
+     "owner": "Tech Lead",
+     "check": "wp.postAuthors"
+    }
+   ]
+  },
+  {
+   "id": "domain-dns-settings",
+   "title": "Domain & DNS Settings",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "domain-dns-settings--point-domain-a-cname",
+     "row": 94,
+     "title": "Point domain (A + CNAME)",
+     "description": "The domain points to the host via both A and CNAME records.",
+     "owner": "Domain & DNS",
+     "check": null
+    },
+    {
+     "id": "domain-dns-settings--redirect-www-to-root",
+     "row": 95,
+     "title": "Redirect www to root",
+     "description": "The site consistently redirects www to root (or vice versa).",
+     "owner": "Devs",
+     "check": "http.wwwRedirect"
+    }
+   ]
+  },
+  {
+   "id": "others",
+   "title": "Others",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "others--google-analytics-tags-present",
+     "row": 97,
+     "title": "Google Analytics tags present",
+     "description": "Google Analytics tags are present on the site (escalate if missing).",
+     "owner": "Claude",
+     "check": "html.analyticsTags"
+    },
+    {
+     "id": "others--correct-cpts-indexed",
+     "row": 98,
+     "title": "Correct CPTs indexed",
+     "description": "Only the custom post types that should be indexed are indexed; others are excluded.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "others--remove-placeholder-blogs",
+     "row": 99,
+     "title": "Remove placeholder blogs",
+     "description": "Placeholder blog posts are deleted, not just drafted, before launch.",
+     "owner": "Tech Lead",
+     "check": "wp.placeholderPosts"
+    }
+   ]
+  },
+  {
+   "id": "accessibility-compliance-performance",
+   "title": "Accessibility, Compliance & Performance",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "accessibility-compliance-performance--color-contrast-wcag-2-2",
+     "row": 101,
+     "title": "Color Contrast (WCAG 2.2)",
+     "description": "All text must meet WCAG 2.2 Level AA contrast ratios: 4.5:1 for normal text, 3:1 for large text. The #1 accessibility failure — found on 83.9% of websites. SUCCESS: All text passes minimum ratios. FAIL: Any text fails — log page, element, colors, and actual ratio.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "accessibility-compliance-performance--keyboard-navigation",
+     "row": 102,
+     "title": "Keyboard Navigation",
+     "description": "Verify entire site is navigable by keyboard only: Tab (forward), Shift+Tab (back), Enter/Space (activate), arrow keys (dropdowns). Every interactive element must be reachable without a mouse. SUCCESS: All elements reachable and operable. FAIL: Any element unreachable or creates keyboard trap — log page and element.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "accessibility-compliance-performance--focus-indicators-visible",
+     "row": 103,
+     "title": "Focus Indicators Visible",
+     "description": "A visible focus ring must appear on all interactive elements when navigated via keyboard. WCAG 2.2 SC 2.4.11 requires visible focus. Common failure: CSS sets outline:none globally. SUCCESS: Clear focus indicator on every element when tabbed to. FAIL: Focus invisible or removed on any element.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "accessibility-compliance-performance--heading-hierarchy",
+     "row": 104,
+     "title": "Heading Hierarchy",
+     "description": "Each page must have exactly one H1, H2s for main sections, H3s for sub-sections. No skipped levels (H1 to H3 with no H2). Screen readers and SEO both depend on logical hierarchy. SUCCESS: One H1, sequential levels, no skipped levels. FAIL: Multiple H1s, skipped levels, or heading tags used for styling only.",
+     "owner": "Claude",
+     "check": "crawl.headings"
+    },
+    {
+     "id": "accessibility-compliance-performance--tap-target-size-wcag-2-2",
+     "row": 105,
+     "title": "Tap Target Size (WCAG 2.2)",
+     "description": "All clickable elements must be at least 24x24 CSS pixels per WCAG 2.2 SC 2.5.8. Apple/Google recommend 44x44px for good mobile usability. SUCCESS: All interactive elements meet 24x24px minimum. FAIL: Any element below 24x24px — log page and element.",
+     "owner": "Tech Lead",
+     "check": "browser.tapTargets"
+    },
+    {
+     "id": "accessibility-compliance-performance--cookie-consent-banner",
+     "row": 106,
+     "title": "Cookie Consent Banner",
+     "description": "A consent mechanism must appear before any non-essential cookies fire. GDPR: opt-in required. CCPA/CPRA: opt-out required with Do Not Sell link. Banner must show Accept and Reject All with equal prominence. SUCCESS: Banner on first visit, cookies blocked before consent, Reject All available. FAIL: No banner, cookies fire before consent, or no Reject All.",
+     "owner": "Claude",
+     "check": "browser.cookieConsent"
+    },
+    {
+     "id": "accessibility-compliance-performance--privacy-policy-page",
+     "row": 107,
+     "title": "Privacy Policy Page",
+     "description": "A Privacy Policy page must exist, load without errors, and be linked in the footer of every page. Required by GDPR, CCPA, and Google policies. SUCCESS: Page exists, loads, and is linked in footer on all pages. FAIL: Missing page, broken link, or not accessible from all pages.",
+     "owner": "Claude",
+     "check": "wp.privacyPolicy"
+    },
+    {
+     "id": "accessibility-compliance-performance--http-security-headers",
+     "row": 108,
+     "title": "HTTP Security Headers",
+     "description": "Server must return: (1) Strict-Transport-Security with max-age >= 63072000; (2) X-Frame-Options: DENY or CSP frame-ancestors; (3) X-Content-Type-Options: nosniff; (4) Referrer-Policy. SUCCESS: All four headers present with correct values. FAIL: Any header missing — log which ones.",
+     "owner": "Claude",
+     "check": "http.securityHeaders"
+    },
+    {
+     "id": "accessibility-compliance-performance--core-web-vitals-all-sites",
+     "row": 109,
+     "title": "Core Web Vitals (All Sites)",
+     "description": "Run CWV checks on ALL sites regardless of builder. 2026 thresholds: LCP < 2.5s, INP < 200ms, CLS < 0.1. Only 47% of sites pass all three. INP replaced FID in 2024 and is the most commonly failed. Use PageSpeed Insights on homepage and 2-3 key pages, desktop and mobile. SUCCESS: All three metrics in Good range. FAIL: Any metric fails — log scores and pages.",
+     "owner": "Claude",
+     "check": "lighthouse.home"
+    },
+    {
+     "id": "accessibility-compliance-performance--schema-markup-validation",
+     "row": 110,
+     "title": "Schema Markup Validation",
+     "description": "Validate all JSON-LD using Google Rich Results Test. Required types: LocalBusiness or MedicalBusiness (healthcare), BreadcrumbList, FAQPage, ContactPoint. Sites with valid schema are cited 3.2x more by AI engines in 2026. SUCCESS: All schema validates, correct types for site category. FAIL: Validation errors, missing required properties, or wrong schema type.",
+     "owner": "Claude / SEO",
+     "check": "html.schema"
+    }
+   ]
+  },
+  {
+   "id": "elementor",
+   "title": "Elementor",
+   "appliesIf": "elementor",
+   "items": [
+    {
+     "id": "elementor--flexbox-container-migration",
+     "row": 112,
+     "title": "Flexbox container migration",
+     "description": "Verify all sections use Flexbox containers (.e-con), not legacy sections or columns - legacy bloats DOM significantly.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--dom-size-audit",
+     "row": 113,
+     "title": "DOM size audit",
+     "description": "Count DOM nodes on key pages - target less than 1400 nodes. Elementor legacy sections add hundreds of wrapper divs.",
+     "owner": "Devs",
+     "check": "browser.domSize"
+    },
+    {
+     "id": "elementor--disable-unused-widgets",
+     "row": 114,
+     "title": "Disable unused widgets",
+     "description": "In Elementor > Settings > Elements, disable all widget categories not used on this site to reduce CSS and JS bundle size.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--improved-asset-loading-on",
+     "row": 115,
+     "title": "Improved asset loading on",
+     "description": "Confirm Improved Asset Loading is enabled in Settings > Advanced - loads widget assets only on pages that use them.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--regenerate-css-and-data-run",
+     "row": 116,
+     "title": "Regenerate CSS and Data run",
+     "description": "Run Tools > Regenerate CSS and Data after any theme or plugin update. Skipping this step causes broken layouts.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--google-fonts-disabled-if-unused",
+     "row": 117,
+     "title": "Google Fonts disabled if unused",
+     "description": "If using custom or system fonts, disable Google Fonts in Elementor to eliminate external font requests.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--wp-memory-limit-256m-or-more",
+     "row": 118,
+     "title": "WP memory limit 256M or more",
+     "description": "Verify WP_MEMORY_LIMIT is at least 256M - Elementor requires it for editor stability.",
+     "owner": "Devs",
+     "check": "wp.memoryLimit"
+    },
+    {
+     "id": "elementor--php-seven-7-4-or-higher",
+     "row": 119,
+     "title": "PHP seven 7.4 or higher",
+     "description": "Confirm PHP 7.4 is active (8.1 or higher recommended for Elementor Pro).",
+     "owner": "Devs",
+     "check": "wp.phpVersion"
+    },
+    {
+     "id": "elementor--pro-license-activated",
+     "row": 120,
+     "title": "Pro license activated",
+     "description": "Verify Elementor Pro license is active and valid for this specific domain.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--global-colors-and-fonts-used",
+     "row": 121,
+     "title": "Global colors and fonts used",
+     "description": "Confirm all design uses Elementor Global Colors and Global Fonts - no hardcoded hex values in widget style tabs.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--pro-form-integrations-tested",
+     "row": 122,
+     "title": "Pro form integrations tested",
+     "description": "Submit a test entry through every Elementor Pro form - verify email delivery, CDM connections, and success messages.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--dynamic-tags-resolve",
+     "row": 123,
+     "title": "Dynamic tags resolve",
+     "description": "Verify all dynamic tags display correct content. No empty or fallback placeholder text visible on the frontend.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--mobile-breakpoints-reviewed",
+     "row": 124,
+     "title": "Mobile breakpoints reviewed",
+     "description": "Review all widgets at all responsive breakpoints (375px and 768px) using DevTools responsive mode.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--no-animation-cls",
+     "row": 125,
+     "title": "No animation CLS",
+     "description": "Entrance animations must not cause Cumulative Layout Shift - run PageSpeed and check CLS score.",
+     "owner": "Devs",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "yootheme",
+   "title": "YOOtheme",
+   "appliesIf": "yootheme",
+   "items": [
+    {
+     "id": "yootheme--file-permissions-on-css-dir",
+     "row": 127,
+     "title": "File permissions on CSS dir",
+     "description": "Verify /wp-content/uploads/yootheme/ is writable (755 dir, 644 files) - wrong permissions means no CSS generated.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--custom-css-loads-no-403",
+     "row": 128,
+     "title": "Custom CSS loads no 403",
+     "description": "Confirm the generated YOOtheme CSS file loads with 200 OK - check DevTools > Network and filter by .css.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--plugin-conflict-check",
+     "row": 129,
+     "title": "Plugin conflict check",
+     "description": "Test for JS errors caused by plugin conflicts. YOOtheme relies on UIkit JS and conflicts silently break animations and modals.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--uikit-components-functional",
+     "row": 130,
+     "title": "UIkit components functional",
+     "description": "Test all UIkit interactive elements: off-canvas menu, modals, dropdowns, sticky navbar, and sliders.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--less-variables-applied-correctly",
+     "row": 131,
+     "title": "Less variables applied correctly",
+     "description": "Verify custom colors and fonts from the theme customizer display correctly on the frontend.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--uikit-icon-font-loads",
+     "row": 132,
+     "title": "UIkit icon font loads",
+     "description": "Icons render correctly with no blank squares. Font file must load from the theme assets folder.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--yootheme-pro-license-active",
+     "row": 133,
+     "title": "YOOtheme Pro license active",
+     "description": "Verify the YOOtheme Pro license key is active and not expired in the theme settings.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--customizer-css-regenerated",
+     "row": 134,
+     "title": "Customizer CSS regenerated",
+     "description": "After any theme changes, confirm CSS is freshly generated. Cached old CSS is a very common YOOtheme issue.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--child-theme-setup-verified",
+     "row": 135,
+     "title": "Child theme setup verified",
+     "description": "If custom Less overrides exist, confirm the child theme is properly configured and active.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--multilingual-switcher-if-wpml",
+     "row": 136,
+     "title": "Multilingual switcher if WPML",
+     "description": "If WPML or Polylang is used, test that the language switcher renders correctly in the YOOtheme navigation.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--woocommerce-elements-if-used",
+     "row": 137,
+     "title": "WooCommerce elements if used",
+     "description": "Test all YOOtheme Pro WooCommerce builder elements: product grid, cart widget, and checkout flow.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--slider-and-gallery-navigation",
+     "row": 138,
+     "title": "Slider and gallery navigation",
+     "description": "Test all sliders and galleries: autoplay, arrow navigation, dot indicators, and touch or swipe on mobile.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--sticky-navbar-behavior",
+     "row": 139,
+     "title": "Sticky navbar behavior",
+     "description": "Verify sticky header scrolls correctly without overlapping content or causing layout shifts.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "tailwind-custom",
+   "title": "Tailwind/Custom",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "tailwind-custom--tailwind-v4-build-process",
+     "row": 141,
+     "title": "Tailwind v4 build process",
+     "description": "Verify package uses @tailwindcss/postcss and not old postcss-cli flags. Build pipeline must output correctly.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--content-and-purge-paths-complete",
+     "row": 142,
+     "title": "Content and purge paths complete",
+     "description": "All template files PHP, Blade, Twig, JS are in Tailwind content detection. No utility classes purged on dynamic pages.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--production-build-runs-clean",
+     "row": 143,
+     "title": "Production build runs clean",
+     "description": "npm run build produces minified and purged CSS with no dev mode artifacts or hot reload code.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--preflight-wp-conflict-check",
+     "row": 144,
+     "title": "Preflight WP conflict check",
+     "description": "Tailwind Preflight resets browser defaults - verify WP core elements admin bar and forms and comments are not broken.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--css-enqueue-order-correct",
+     "row": 145,
+     "title": "CSS enqueue order correct",
+     "description": "Tailwind CSS loads in the correct order relative to WordPress core styles - check enqueue priority in functions.php.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--safelist-dynamic-classes",
+     "row": 146,
+     "title": "Safelist dynamic classes",
+     "description": "Classes generated from ACF or PHP logic are added to the safelist in tailwind.config.js so they survive purge.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--apply-directives-compile",
+     "row": 147,
+     "title": "Apply directives compile",
+     "description": "Custom component classes using @apply are present in the compiled CSS output - verify in built file.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--block-editor-compatibility",
+     "row": 148,
+     "title": "Block editor compatibility",
+     "description": "Gutenberg and FSE blocks render correctly in both the editor and frontend with Tailwind active.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--no-source-maps-in-production",
+     "row": 149,
+     "title": "No source maps in production",
+     "description": "No dot map files exposed in production build - check Network tab for any map requests.",
+     "owner": "Devs",
+     "check": "http.sourceMaps"
+    },
+    {
+     "id": "tailwind-custom--build-tool-asset-paths-correct",
+     "row": 150,
+     "title": "Build tool asset paths correct",
+     "description": "If Vite is used, confirm production build outputs correct public asset paths with no localhost references in source.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--custom-breakpoints-match-design",
+     "row": 151,
+     "title": "Custom breakpoints match design",
+     "description": "sm, md, lg, xl breakpoints in tailwind.config match the designer breakpoint specifications.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--typography-and-prose-styles",
+     "row": 152,
+     "title": "Typography and prose styles",
+     "description": "Tailwindcss typography prose classes render correctly in posts, pages, and rich-text areas.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--production-build-is-latest",
+     "row": 153,
+     "title": "Production build is latest",
+     "description": "Confirm the final production build ran immediately before go live. No dev mode CSS or stale compiled output.",
+     "owner": "Devs",
+     "check": null
+    }
+   ]
+  }
+ ]
+}

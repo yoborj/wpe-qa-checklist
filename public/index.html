@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WPE QA Checklist</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="mark" aria-hidden="true">✓</span><b>WPE QA Checklist</b></div>
+  <div class="site-picker">
+    <label for="sitePick" class="sr">Site</label>
+    <select id="sitePick"></select>
+    <button class="btn ghost" id="editSite" type="button">Site settings</button>
+    <button class="btn" id="addSite" type="button">Add site</button>
+  </div>
+</header>
+
+<main id="app">
+  <section id="empty" class="empty" hidden>
+    <h1>Add your first site</h1>
+    <p>Enter the URL you want to audit: the staging address before launch, the real domain after. The app finds the WP Engine install behind it, reads WordPress over SSH with your key, and checks the pages in Chrome.</p>
+    <button class="btn primary" id="addFirst" type="button">Add site</button>
+  </section>
+
+  <section id="siteView" hidden>
+    <div class="sitebar">
+      <div>
+        <h1 id="siteName"></h1>
+        <p class="meta"><a id="siteHome" target="_blank" rel="noopener"></a> · <span id="siteInstall"></span></p>
+      </div>
+    </div>
+
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+
+    <div class="toolbar">
+      <button class="btn primary run" id="runTool" type="button">Run Tool</button>
+      <div class="lastrun" id="lastRun"></div>
+      <div class="spacer"></div>
+      <div class="filters" role="group" aria-label="Show">
+        <button type="button" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="attention" aria-pressed="false">Needs attention</button>
+        <button type="button" data-filter="manual" aria-pressed="false">Manual items</button>
+      </div>
+      <a class="btn ghost" id="reportLink" target="_blank" rel="noopener">Report</a>
+    </div>
+
+    <div class="runpanel" id="runPanel" hidden>
+      <div class="bar"><span id="runBar"></span></div>
+      <pre id="runLog" aria-live="polite"></pre>
+    </div>
+
+    <div class="counts" id="counts"></div>
+    <div id="sections"></div>
+  </section>
+</main>
+
+<dialog id="siteDialog">
+  <form method="dialog" id="siteForm">
+    <h2 id="siteDialogTitle">Add site</h2>
+    <label>Site URL to audit<input id="fUrl" name="url" required placeholder="https://www.example.com or https://install.wpenginepowered.com" autocomplete="off" inputmode="url"></label>
+    <label>Display name <small>optional</small><input id="fName" name="name" placeholder="Example Clinic"></label>
+    <label>WP Engine install <small>optional, detected from the URL</small><input id="fInstall" name="install" pattern="[a-z0-9]{3,30}" placeholder="detected automatically" autocomplete="off"></label>
+    <label>Expected admin email<input id="fEmail" name="adminEmail" type="email" placeholder="developer@example.com"></label>
+    <label>Reference (old) site URL <small>optional, for QA Swarm content comparison</small><input id="fRef" name="referenceUrl" placeholder="https://old-site.com"></label>
+    <label>Max pages to check<input id="fMax" name="maxPages" type="number" min="5" max="300" value="80"></label>
+    <p class="err" id="siteErr" hidden></p>
+    <div class="dlg-actions">
+      <button class="btn danger" id="deleteSite" type="button" hidden>Remove site</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" id="saveSite" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>

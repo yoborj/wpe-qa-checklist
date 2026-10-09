@@ -1,0 +1,482 @@
+{
+ "id": "after-launch",
+ "title": "QA — After Launch",
+ "source": "QA — After Launch",
+ "sections": [
+  {
+   "id": "contact-form",
+   "title": "Contact Form",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "contact-form--contact-form-from-email-updated",
+     "row": 3,
+     "title": "Contact form 'From' email updated",
+     "description": "After launch, the Contact Form 7 'From' field is set to an address on the live domain to avoid validation errors.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "contact-form--anti-spam-recaptcha-installed",
+     "row": 4,
+     "title": "Anti-spam reCAPTCHA installed",
+     "description": "reCAPTCHA v3 is installed and active on all contact forms to prevent spam.",
+     "owner": "Devs",
+     "check": "html.recaptcha"
+    }
+   ]
+  },
+  {
+   "id": "mobile",
+   "title": "Mobile",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "mobile--mobile-friendly-test",
+     "row": 6,
+     "title": "Mobile-friendly test",
+     "description": "The site passes Google's Mobile-Friendly Test.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "migration-checklist",
+   "title": "Migration Checklist",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "migration-checklist--find-replace-old-urls",
+     "row": 8,
+     "title": "Find & replace old URLs",
+     "description": "All instances of the old URL have been replaced with the new URL across the site.",
+     "owner": "Devs",
+     "check": "wp.oldUrls"
+    },
+    {
+     "id": "migration-checklist--search-replace-old-urls",
+     "row": 9,
+     "title": "Search & replace old URLs",
+     "description": "All old URL instances have been searched and replaced with the new ones across the site.",
+     "owner": "Devs",
+     "check": "wp.oldUrls"
+    }
+   ]
+  },
+  {
+   "id": "wordpress-settings",
+   "title": "WordPress Settings",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "wordpress-settings--site-is-indexed",
+     "row": 11,
+     "title": "Site is indexed",
+     "description": "The live site is being indexed by search engines.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "wordpress-settings--featured-images-on-main-pages",
+     "row": 12,
+     "title": "Featured images on main pages",
+     "description": "Main pages have Featured Images set to improve social sharing thumbnails.",
+     "owner": "Claude",
+     "check": "wp.featuredImages"
+    },
+    {
+     "id": "wordpress-settings--site-is-indexable",
+     "row": 13,
+     "title": "Site is indexable",
+     "description": "Search engine visibility is enabled in WordPress reading settings.",
+     "owner": "Claude",
+     "check": "wp.indexable"
+    }
+   ]
+  },
+  {
+   "id": "website-optimization",
+   "title": "Website Optimization",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "website-optimization--website-speed",
+     "row": 15,
+     "title": "Website speed",
+     "description": "Site speed has been tested on the live site.",
+     "owner": "Tech Lead",
+     "check": "lighthouse.home"
+    },
+    {
+     "id": "website-optimization--image-optimization",
+     "row": 16,
+     "title": "Image optimization",
+     "description": "Images are properly sized and compressed. https://wordpress.org/plugins/wp-optimize/",
+     "owner": "Devs",
+     "check": "crawl.imageWeight"
+    }
+   ]
+  },
+  {
+   "id": "security-and-updates",
+   "title": "Security and Updates",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "security-and-updates--ssl",
+     "row": 18,
+     "title": "SSL",
+     "description": "SSL is installed correctly and the site is served over HTTPS without mixed content.",
+     "owner": "Claude",
+     "check": "http.ssl"
+    }
+   ]
+  },
+  {
+   "id": "call-tracking-settings",
+   "title": "Call Tracking Settings",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "call-tracking-settings--call-tracking-tool",
+     "row": 20,
+     "title": "Call tracking tool?",
+     "description": "Confirm whether this client will have call tracking managed by your call-tracking provider.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "call-tracking-settings--call-tracking-code-installed",
+     "row": 21,
+     "title": "Call tracking code installed",
+     "description": "We have access to the call-tracking account and the call-tracking code is installed on the site.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "call-tracking-settings--call-tracking-onboarding-doc",
+     "row": 22,
+     "title": "Call tracking onboarding doc",
+     "description": "The correct call-tracking onboarding document has been copied and linked in the Notes column.",
+     "owner": "SEO/Account Manager",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "analytics-and-tracking",
+   "title": "Analytics and Tracking",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "analytics-and-tracking--access-to-analytics-account",
+     "row": 24,
+     "title": "Access to analytics account",
+     "description": "If the client has a GA account, admin access is shared with hello@example.com; otherwise a new property is created.",
+     "owner": "SEO/Account Manager",
+     "check": null
+    },
+    {
+     "id": "analytics-and-tracking--set-up-google-tag-manager",
+     "row": 25,
+     "title": "Set up Google Tag Manager",
+     "description": "If the client has a GTM account, admin access is shared with hello@example.com; otherwise a new account is created.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "analytics-and-tracking--set-up-ga4-via-gtm",
+     "row": 26,
+     "title": "Set up GA4 via GTM",
+     "description": "Google Analytics 4 is installed through Google Tag Manager and the GTM code is on the site.",
+     "owner": "Devs",
+     "check": "html.ga4ViaGtm"
+    },
+    {
+     "id": "analytics-and-tracking--set-up-search-console",
+     "row": 27,
+     "title": "Set up Search Console",
+     "description": "The site is added and verified in Google Search Console.",
+     "owner": "Devs",
+     "check": "html.searchConsole"
+    }
+   ]
+  },
+  {
+   "id": "seo-checklist",
+   "title": "SEO Checklist",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "seo-checklist--xml-sitemap-in-search-console",
+     "row": 29,
+     "title": "XML sitemap in Search Console",
+     "description": "An XML sitemap is submitted to GSC, with category, tag, author, and date sitemaps removed.",
+     "owner": "Devs",
+     "check": "http.sitemap"
+    },
+    {
+     "id": "seo-checklist--run-a-technical-seo-audit",
+     "row": 30,
+     "title": "Run a technical SEO audit",
+     "description": "A technical SEO audit has been run and the results added to the Technical Audit tab.",
+     "owner": "SEO",
+     "check": null
+    },
+    {
+     "id": "seo-checklist--run-an-on-page-seo-audit",
+     "row": 31,
+     "title": "Run an on-page SEO audit",
+     "description": "An on-page SEO audit has been run and the results added to the Technical Audit tab.",
+     "owner": "SEO",
+     "check": null
+    },
+    {
+     "id": "seo-checklist--no-links-to-staging",
+     "row": 32,
+     "title": "No links to staging",
+     "description": "No links pointing to the staging site remain on the live site.",
+     "owner": "Tech Lead",
+     "check": "crawl.stagingLinks"
+    },
+    {
+     "id": "seo-checklist--add-default-schema-markup",
+     "row": 33,
+     "title": "Add default schema markup",
+     "description": "Basic JSON-LD has been added using the appropriate markup schema template.",
+     "owner": "Devs",
+     "check": "html.schema"
+    },
+    {
+     "id": "seo-checklist--remove-no-index-tag",
+     "row": 34,
+     "title": "Remove no-index tag",
+     "description": "The noindex tag is removed so the site can be crawled.",
+     "owner": "Devs",
+     "check": "crawl.noindex"
+    },
+    {
+     "id": "seo-checklist--review-robots-txt",
+     "row": 35,
+     "title": "Review robots.txt",
+     "description": "The robots.txt file is correctly configured (by Yoast).",
+     "owner": "Devs",
+     "check": "http.robots"
+    }
+   ]
+  },
+  {
+   "id": "accessibility-compliance-performance",
+   "title": "Accessibility, Compliance & Performance",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "accessibility-compliance-performance--core-web-vitals-live",
+     "row": 37,
+     "title": "Core Web Vitals — Live",
+     "description": "Re-run LCP, INP, and CLS on the live domain after launch. Live performance often differs from staging due to CDN and caching differences. SUCCESS: LCP < 2.5s, INP < 200ms, CLS < 0.1 on live. FAIL: Any metric fails — report scores and top improvement suggestions.",
+     "owner": "Claude",
+     "check": "lighthouse.home"
+    },
+    {
+     "id": "accessibility-compliance-performance--cookie-consent-live-test",
+     "row": 38,
+     "title": "Cookie Consent — Live Test",
+     "description": "On the live site in a fresh incognito window, open DevTools > Application > Cookies and confirm no GA4, GTM, or pixel cookies are stored before the user accepts the banner. SUCCESS: No non-essential cookies before consent. FAIL: Any tracking cookies fire before user accepts — fix immediately.",
+     "owner": "Tech Lead",
+     "check": "browser.cookieConsent"
+    },
+    {
+     "id": "accessibility-compliance-performance--schema-drift-check",
+     "row": 39,
+     "title": "Schema Drift Check",
+     "description": "After launch, verify JSON-LD schema still reflects accurate live content: phone, address, hours, services. CMS updates and plugin changes can silently break schema. SUCCESS: All schema fields match live page content. FAIL: Schema contains outdated or mismatched data — flag specific fields.",
+     "owner": "SEO",
+     "check": "html.schemaDrift"
+    },
+    {
+     "id": "accessibility-compliance-performance--ai-search-visibility-check",
+     "row": 40,
+     "title": "AI Search Visibility Check",
+     "description": "Search business name and primary service in Google AI Mode, Perplexity, and ChatGPT. Check Google Search Console for rich result impressions. SUCCESS: Site appears in AI citations or rich results in GSC. FAIL: No citations or rich results — review schema and content authority.",
+     "owner": "SEO",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "elementor",
+   "title": "Elementor",
+   "appliesIf": "elementor",
+   "items": [
+    {
+     "id": "elementor--regenerate-css-after-updates",
+     "row": 42,
+     "title": "Regenerate CSS after updates",
+     "description": "After any plugin or theme update on live site, run Elementor Tools Regenerate CSS and Data immediately.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--no-js-errors-in-console",
+     "row": 43,
+     "title": "No JS errors in console",
+     "description": "Open DevTools console on homepage and key landing pages - no Elementor related JS errors.",
+     "owner": "Devs",
+     "check": "browser.consoleErrors"
+    },
+    {
+     "id": "elementor--core-web-vitals-post-launch",
+     "row": 44,
+     "title": "Core Web Vitals post launch",
+     "description": "Re run PageSpeed Insights on the live URL. LCP is often an Elementor hero image and needs specific attention.",
+     "owner": "Tech Lead",
+     "check": "lighthouse.home"
+    },
+    {
+     "id": "elementor--forms-working-on-live-site",
+     "row": 45,
+     "title": "Forms working on live site",
+     "description": "Test that all forms work on the live site — submit a test entry and confirm email delivery, connections, and success messages.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "elementor--real-device-breakpoint-test",
+     "row": 46,
+     "title": "Real device breakpoint test",
+     "description": "Verify layout on a real iPhone and Android device. Browser resize does not replicate real device rendering.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "elementor--pro-license-on-live-domain",
+     "row": 47,
+     "title": "Pro license on live domain",
+     "description": "Confirm Elementor Pro license is activated for the live domain and not just staging.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "elementor--dom-count-not-increased",
+     "row": 48,
+     "title": "DOM count not increased",
+     "description": "Verify DOM node count has not grown after content editors added new sections or widgets.",
+     "owner": "Devs",
+     "check": "browser.domSize"
+    }
+   ]
+  },
+  {
+   "id": "yootheme",
+   "title": "YOOtheme",
+   "appliesIf": "yootheme",
+   "items": [
+    {
+     "id": "yootheme--css-file-accessible-post-deploy",
+     "row": 50,
+     "title": "CSS file accessible post deploy",
+     "description": "After deployment, verify yootheme CSS loads without 403 forbidden. Permissions can reset on deploy.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--no-js-errors-post-launch",
+     "row": 51,
+     "title": "No JS errors post launch",
+     "description": "Check browser console for UIkit or plugin related JS errors on homepage and key pages after launch.",
+     "owner": "Devs",
+     "check": "browser.consoleErrors"
+    },
+    {
+     "id": "yootheme--customizer-changes-save",
+     "row": 52,
+     "title": "Customizer changes save",
+     "description": "Verify the theme customizer saves correctly and changes appear on the frontend. Not serving stale cached CSS.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "yootheme--file-permissions-persist",
+     "row": 53,
+     "title": "File permissions persist",
+     "description": "Some hosts reset folder permissions on deployment. Re verify yootheme directory after each deploy.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "yootheme--staging-to-prod-parity-check",
+     "row": 54,
+     "title": "Staging to prod parity check",
+     "description": "Visual sweep of all pages to confirm staging to production parity. No missing images, broken layouts, or missing elements.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "yootheme--uikit-compat-after-wp-update",
+     "row": 55,
+     "title": "UIkit compat after WP update",
+     "description": "After WordPress core updates, run through all UIkit interactive components to confirm they still function.",
+     "owner": "Devs",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "tailwind-custom",
+   "title": "Tailwind/Custom",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "tailwind-custom--no-missing-utility-classes",
+     "row": 57,
+     "title": "No missing utility classes",
+     "description": "Browse all pages and check for unstyled elements. Aggressive CSS purge is a common post launch find.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--no-cdn-fallback-in-production",
+     "row": 58,
+     "title": "No CDN fallback in production",
+     "description": "Verify no Tailwind CDN script tag in production HTML. Only the compiled CSS file should be loaded.",
+     "owner": "Devs",
+     "check": "html.noTailwindCdn"
+    },
+    {
+     "id": "tailwind-custom--build-pipeline-documented",
+     "row": 59,
+     "title": "Build pipeline documented",
+     "description": "If no CI or CD: confirm build steps are documented so any developer can rebuild CSS after template changes.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--wp-core-update-compatibility",
+     "row": 60,
+     "title": "WP core update compatibility",
+     "description": "After every WordPress update, verify core CSS changes do not conflict with Tailwind styles.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--acf-dynamic-content-styled",
+     "row": 61,
+     "title": "ACF dynamic content styled",
+     "description": "Verify all ACF custom fields display with correct Tailwind styling. No classes purged from dynamic output.",
+     "owner": "Devs",
+     "check": null
+    },
+    {
+     "id": "tailwind-custom--forms-and-interactive-elements",
+     "row": 62,
+     "title": "Forms and interactive elements",
+     "description": "Test all JS dependent interactive elements dropdowns, modals, sliders function with the compiled custom CSS.",
+     "owner": "Devs",
+     "check": "browser.interactive"
+    }
+   ]
+  }
+ ]
+}

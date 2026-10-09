@@ -1,0 +1,196 @@
+{
+ "id": "wp-site-audit",
+ "title": "WP Site Audit",
+ "source": "yoborj/david-skills-public · wp-site-audit",
+ "sections": [
+  {
+   "id": "provenance",
+   "title": "0. Content provenance",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "provenance--claims",
+     "title": "Every factual claim is sourced",
+     "description": "Stats, results, testimonials, awards, service areas and years in business all trace back to the old site or the client. Anything invented is removed.",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  },
+  {
+   "id": "links",
+   "title": "1–2. Links",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "links--collapse",
+     "title": "No collapsed links",
+     "description": "No page has more than 3 differently-worded links that all point at the same index page (cards that \"just reload\").",
+     "owner": "Claude",
+     "check": "audit.collapse"
+    },
+    {
+     "id": "links--empty",
+     "title": "No empty links",
+     "description": "No <a href=\"\"> anywhere.",
+     "owner": "Claude",
+     "check": "audit.emptyHref"
+    },
+    {
+     "id": "links--asset",
+     "title": "No asset URLs used as page links",
+     "description": "Navigation and \"related\" links never point at images, PDFs or other files.",
+     "owner": "Claude",
+     "check": "audit.assetLinks"
+    }
+   ]
+  },
+  {
+   "id": "content",
+   "title": "3–4. Imported content",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "content--styled",
+     "title": "Imported content is styled",
+     "description": "Blog and CPT body content (headings, lists, links, images) renders with the site styles, not as an unstyled wall.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "content--dupes",
+     "title": "No duplicate images in content",
+     "description": "The same image does not appear twice in one page body.",
+     "owner": "Claude",
+     "check": "audit.duplicateImages"
+    }
+   ]
+  },
+  {
+   "id": "nav",
+   "title": "5–7. Navigation, visibility and junk",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "nav--stale",
+     "title": "No stale navigation",
+     "description": "Menus, footer and body copy only mention services and pages that still exist.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "nav--leaks",
+     "title": "Hidden content stays hidden",
+     "description": "Content that must be draft or noindex is not published.",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "nav--junk",
+     "title": "No junk posts or slug collisions",
+     "description": "No hello-world, sample page, imported listing pages, or posts whose slug matches a page.",
+     "owner": "Claude",
+     "check": "audit.junkPosts"
+    }
+   ]
+  },
+  {
+   "id": "nap",
+   "title": "8. Contact details and mu-plugins",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "nap--emails",
+     "title": "Exposed email addresses reviewed",
+     "description": "Every email address shown on the site is intended (lists each address and where it appears).",
+     "owner": "Claude",
+     "check": "audit.emails"
+    },
+    {
+     "id": "nap--mu",
+     "title": "No buried mu-plugin overrides",
+     "description": "Custom mu-plugins are listed; none force styles, redirects or filters that shadow the theme.",
+     "owner": "Claude",
+     "check": "audit.muPlugins"
+    }
+   ]
+  },
+  {
+   "id": "polish",
+   "title": "9. Titles, images, formats",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "polish--titles",
+     "title": "Display titles are clean",
+     "description": "On-page H1s are not long SEO strings (over 70 characters or containing \" | \").",
+     "owner": "Claude",
+     "check": "audit.longH1"
+    },
+    {
+     "id": "polish--alt",
+     "title": "Alt text on content images",
+     "description": "Content images have alt text; decorative ones are counted separately.",
+     "owner": "Claude",
+     "check": "audit.alt"
+    },
+    {
+     "id": "polish--phones",
+     "title": "One phone format",
+     "description": "Phone numbers use one consistent format sitewide.",
+     "owner": "Claude",
+     "check": "audit.phoneFormats"
+    },
+    {
+     "id": "polish--editable",
+     "title": "Everything rendered is editable",
+     "description": "Every visible section can be edited in wp-admin (ACF field, CPT, Theme Options).",
+     "owner": "Tech Lead",
+     "check": null
+    },
+    {
+     "id": "polish--featured",
+     "title": "CPT posts have featured images",
+     "description": "Every published custom-post-type entry has a featured image.",
+     "owner": "Claude",
+     "check": "audit.cptFeatured"
+    },
+    {
+     "id": "polish--yoast",
+     "title": "Yoast title suffix",
+     "description": "Page titles end with the site name via Yoast (separator + %%sitename%%).",
+     "owner": "Claude",
+     "check": "audit.yoastTitles"
+    },
+    {
+     "id": "polish--placeholders",
+     "title": "No placeholder leaks",
+     "description": "No fake phones (555, 000), placeholder emails, zero counters, lorem/TBD/TODO or unrendered {{tokens}} on any page.",
+     "owner": "Claude",
+     "check": "audit.placeholders"
+    },
+    {
+     "id": "polish--localstyles",
+     "title": "Shared rules not trapped in page styles",
+     "description": "Count of page-local <style> blocks per template, so a shared rule living in one template is visible.",
+     "owner": "Claude",
+     "check": "audit.localStyles"
+    }
+   ]
+  },
+  {
+   "id": "visual",
+   "title": "10. Visual pass",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "visual--eyes",
+     "title": "Every page type looked at",
+     "description": "Every distinct page type was opened and looked at on desktop and phone (QA Swarm screenshots help).",
+     "owner": "Tech Lead",
+     "check": null
+    }
+   ]
+  }
+ ]
+}

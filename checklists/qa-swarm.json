@@ -1,0 +1,84 @@
+{
+ "id": "qa-swarm",
+ "title": "QA Swarm",
+ "source": "yoborj/david-skills-public · qa-swarm",
+ "sections": [
+  {
+   "id": "pages",
+   "title": "Every page in the sitemap",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "pages--http",
+     "title": "A. HTTP status",
+     "description": "Every page in the sitemap answers 200.",
+     "owner": "Claude",
+     "check": "swarm.http"
+    },
+    {
+     "id": "pages--links",
+     "title": "A. Internal links",
+     "description": "No internal link on any page is broken (4xx/5xx).",
+     "owner": "Claude",
+     "check": "swarm.links"
+    },
+    {
+     "id": "pages--a11y",
+     "title": "F. Accessibility and SEO basics",
+     "description": "Each page has a title, exactly one H1, a lang attribute, alt text on content images, a meta description and no console errors.",
+     "owner": "Claude",
+     "check": "swarm.a11y"
+    },
+    {
+     "id": "pages--mobile",
+     "title": "E. Mobile 375 px",
+     "description": "Each page fits a 375 px screen with no sideways scroll, and the menu button is at least 44 px.",
+     "owner": "Claude",
+     "check": "swarm.mobile"
+    },
+    {
+     "id": "pages--interactive",
+     "title": "D. Navigation and menus",
+     "description": "The phone menu opens and closes, and the desktop navigation links resolve.",
+     "owner": "Claude",
+     "check": "swarm.interactive"
+    },
+    {
+     "id": "pages--visual",
+     "title": "B. Visual snapshots",
+     "description": "Desktop and phone screenshots of every page (up to 40), to look through in one gallery.",
+     "owner": "Claude",
+     "check": "swarm.visual"
+    }
+   ]
+  },
+  {
+   "id": "compare",
+   "title": "Compared with the reference site",
+   "appliesIf": "reference",
+   "items": [
+    {
+     "id": "compare--content",
+     "title": "C. Content completeness",
+     "description": "Text from each old page appears on its new page (needs a reference site and old-to-new URL pairs from redirects).",
+     "owner": "Claude",
+     "check": "swarm.content"
+    }
+   ]
+  },
+  {
+   "id": "score",
+   "title": "Score",
+   "appliesIf": null,
+   "items": [
+    {
+     "id": "score--composite",
+     "title": "Site composite score",
+     "description": "Average of the per-page scores (HTTP, links, mobile, accessibility/SEO). Pass at 90% or higher.",
+     "owner": "Claude",
+     "check": "swarm.composite"
+    }
+   ]
+  }
+ ]
+}
