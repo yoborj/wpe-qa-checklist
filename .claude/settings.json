@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node bin/wpeqa.mjs help:*)",
+      "Bash(node bin/wpeqa.mjs sites:*)",
+      "Bash(node bin/wpeqa.mjs add:*)",
+      "Bash(node bin/wpeqa.mjs run:*)",
+      "Bash(node bin/wpeqa.mjs status:*)",
+      "Bash(node bin/wpeqa.mjs report:*)",
+      "Bash(node bin/wpeqa.mjs plan:*)",
+      "Bash(node bin/wpeqa.mjs rules:*)",
+      "Bash(node bin/wpeqa.mjs approve:*)",
+      "Bash(node bin/wpeqa.mjs decline:*)",
+      "Bash(node bin/wpeqa.mjs note:*)",
+      "Bash(node bin/wpeqa.mjs serve:*)",
+      "Bash(npm install)",
+      "Bash(npm start)",
+      "Read(data/**)"
+    ]
+  }
+}

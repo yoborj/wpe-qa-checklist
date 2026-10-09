@@ -9,6 +9,7 @@ const api = async (path, opts = {}) => { const r = await fetch('/api' + path, { 
 const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString(); };
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
 const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request' };
+const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
 const copy = async (text, btn) => { try { await navigator.clipboard.writeText(text); const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500); } catch { prompt('Copy this:', text); } };
 const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -92,7 +93,7 @@ function itemRow(it) {
       el('p', { class: 'item-desc', text: it.description }),
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
       details),
-    el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: FIXSTATE[s.fix.state] || s.fix.state }) : null),
+    el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: fixLabel(s.fix) }) : null),
     el('div', { class: 'item-extra' }, note, fix));
 }
 
@@ -187,14 +188,24 @@ $('applyFixes').addEventListener('click', async () => {
   $('fixManualSec').hidden = !man;
   $('fixManualTitle').textContent = `Fix request for a developer (${man})`;
   $('fixManual').replaceChildren(...plan.manual.map(m => el('li', {}, el('b', { text: m.title }), el('small', { text: m.reason }))));
-  $('fixConfirmText').textContent = auto ? `I approve these ${auto} change${auto === 1 ? '' : 's'} on ${plan.url} now.` : `Create the fix request (nothing on the site changes).`;
-  $('fixGo').textContent = auto ? `Back up and apply ${auto} fix${auto === 1 ? '' : 'es'}` : 'Create fix request';
+  $('claudeRow').hidden = !man || !plan.claudeAvailable; $('claudeMissing').hidden = !man || plan.claudeAvailable;
+  $('fixClaude').checked = !!(man && plan.claudeAvailable);
+  const sync = () => {
+    const claude = $('fixClaude').checked && man > 0;
+    const changes = auto + (claude ? man : 0);
+    $('fixBackupSec').hidden = !changes; $('fixAfterSec').hidden = !changes;
+    $('fixConfirmText').textContent = !changes ? 'Create the fix request (nothing on the site changes).'
+      : `I approve ${auto ? `${auto} automatic change${auto === 1 ? '' : 's'}` : ''}${auto && claude ? ' and ' : ''}${claude ? `Claude Code fixing ${man} item${man === 1 ? '' : 's'}` : ''} on ${plan.url} now.`;
+    $('fixGo').textContent = !changes ? 'Create fix request' : claude ? 'Back up and run fixes' : `Back up and apply ${auto} fix${auto === 1 ? '' : 'es'}`;
+    $('fixConfirm').checked = false; $('fixGo').disabled = true;
+  };
+  $('fixClaude').onchange = sync; sync();
   $('fixDialog').showModal();
 });
 $('fixConfirm').addEventListener('change', e => { $('fixGo').disabled = !e.target.checked; });
 $('fixCancel').addEventListener('click', () => $('fixDialog').close());
 $('fixGo').addEventListener('click', async () => {
-  try { $('fixGo').disabled = true; const r = await api(`/sites/${current.id}/fix/${tab}`, { method: 'POST', body: { confirm: true } }); $('fixDialog').close(); follow(r.runId); }
+  try { $('fixGo').disabled = true; const r = await api(`/sites/${current.id}/fix/${tab}`, { method: 'POST', body: { confirm: true, claude: $('fixClaude').checked && !$('claudeRow').hidden } }); $('fixDialog').close(); follow(r.runId); }
   catch (e) { $('fixErr').textContent = e.message; $('fixErr').hidden = false; $('fixGo').disabled = false; }
 });
 

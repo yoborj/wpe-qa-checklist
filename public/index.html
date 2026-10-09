@@ -83,7 +83,9 @@
     <p class="fixsite" id="fixSite"></p>
     <section id="fixBackupSec"><h3>1. Backup first</h3><p id="fixBackup"></p></section>
     <section id="fixAutoSec"><h3 id="fixAutoTitle">2. Automatic fixes</h3><ol id="fixAuto"></ol></section>
-    <section id="fixManualSec"><h3 id="fixManualTitle">Fix request for a developer</h3><p class="muted">These can't be fixed safely by the app. They go into a fix request you can hand to Claude or a developer.</p><ul id="fixManual"></ul></section>
+    <section id="fixManualSec"><h3 id="fixManualTitle">Fix request for a developer</h3><p class="muted">These can't be fixed by the app's built-in fixes.</p><ul id="fixManual"></ul>
+      <label class="claudeopt" id="claudeRow"><input type="checkbox" id="fixClaude"> <span><b>Have Claude fix these.</b> Claude Code runs on this Mac with your account, follows the production rules (check others' edits, lint PHP, clear caches, verify) and reports each item as fixed or skipped. Anything it skips stays in the fix request.</span></label>
+      <p class="muted" id="claudeMissing" hidden>Claude Code isn't installed on this Mac, so these go into a fix request.</p></section>
     <section id="fixAfterSec"><h3>3. Then</h3><p>Caches are cleared and this tab's checks run again, so each fix shows as verified or still flagged.</p></section>
     <label class="confirm" id="fixConfirmRow"><input type="checkbox" id="fixConfirm"> <span id="fixConfirmText"></span></label>
     <p class="err" id="fixErr" hidden></p>

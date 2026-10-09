@@ -127,6 +127,9 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 60px; }
 .muted { color: var(--faint); font-size: 13.5px; margin-bottom: 6px !important; }
 .confirm { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-weight: 600; }
 .confirm input { margin-top: 3px; }
+.claudeopt { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 8px; font-size: 13.5px; }
+.claudeopt input { margin-top: 3px; }
+.claudeopt b { color: var(--ink); }
 #fixDialog { width: min(620px, calc(100vw - 32px)); }
 
 dialog { border: 1px solid var(--line-2); border-radius: 12px; padding: 0; background: var(--surface); color: var(--body); width: min(480px, calc(100vw - 32px)); }
