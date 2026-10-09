@@ -48,7 +48,8 @@ Plain **Run Tool** runs never change the site, so they don't take a backup.
 
 ## Run it from Claude Code
 
-Clone the repo, open Claude Code in the folder and ask, for example:
+Clone the repo, run `npm install`, open Claude Code in the folder (accept the trust prompt the
+first time, so the pre-approved commands apply) and ask, for example:
 
 ```
 /qa https://www.example.com
@@ -80,7 +81,8 @@ log, and marks each item fixed (then verified by a re-check) or skipped.
 - Your SSH key added to WP Engine (User Portal → Profile → SSH keys), so
   `ssh <install>@<install>.ssh.wpengine.net` works without a password.
 - For re-importing checklists: Python 3 with `openpyxl`.
-- For Claude features: Claude Code (`claude`) installed and signed in.
+- For Claude features: Claude Code (`claude`) installed and signed in (`claude auth status`;
+  sign in with `claude auth login`). The app checks this before offering "Have Claude fix these".
 
 ## Run it
 

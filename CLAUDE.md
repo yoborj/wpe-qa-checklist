@@ -14,6 +14,11 @@ The same data is shown in the web app (`npm start` → http://localhost:4646).
    `ssh -o BatchMode=yes <install>@<install>.ssh.wpengine.net 'bash -s' <<< 'echo ok'`.
    If it fails, tell them to add their public key in the WP Engine User Portal (Profile → SSH keys).
    Never ask for or type a password.
+4. The pre-approved commands in `.claude/settings.json` only apply once the folder is trusted:
+   if you are asked for permission on read-only `wpeqa` commands, tell the person to open `claude`
+   in this folder once and accept the trust prompt.
+5. The `--claude` hand-off (and the web app's "Have Claude fix these") needs the `claude` command
+   signed in on this Mac: `claude auth status`. If it isn't, they run `claude auth login`.
 
 ## When someone asks you to QA a site
 

@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { ROOT, DATA, TABS, templates, listSites, getSite, saveSite, deleteSite, getState, setItem, runDir } from './lib/store.mjs';
 import { checkJob, fixJob, newRunId, runLogger } from './lib/jobs.mjs';
-import { claudeBin } from './lib/claude.mjs';
+import { claudeStatus } from './lib/claude.mjs';
 import { planFixes } from './lib/fixers.mjs';
 import { report } from './lib/report.mjs';
 
@@ -70,7 +70,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p[3] === 'fix' && TABS.includes(p[4]) && p[5] === 'plan') {
       const plan = planFixes(templates()[p[4]], getState(site.id).tabs[p[4]] || { items: {} }, site);
       const strip = x => ({ id: x.id, title: x.title, action: x.action, reason: x.reason, note: x.item.note || '' });
-      return send(res, 200, { install: site.install, url: site.url, auto: plan.auto.map(strip), manual: plan.manual.map(strip), backupPlugins: plan.auto.some(a => a.check === 'wp.plugins'), claudeAvailable: !!claudeBin() });
+      return send(res, 200, { install: site.install, url: site.url, auto: plan.auto.map(strip), manual: plan.manual.map(strip), backupPlugins: plan.auto.some(a => a.check === 'wp.plugins'), ...(st => ({ claudeAvailable: st.ok, claudeReason: st.reason || null }))(plan.manual.length ? claudeStatus() : { ok: false }) });
     }
     if (req.method === 'POST' && p[3] === 'fix' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the fix run first.' }); const r = startJob(site, p[4], 'fix', { claude: b.claude === true }); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'fix-request' && p[4]) { const f = path.join(runDir(site.id, p[4]), 'fix-request.md'); return fs.existsSync(f) ? send(res, 200, fs.readFileSync(f, 'utf8'), TYPES['.md']) : send(res, 404, { error: 'No fix request for that run.' }); }

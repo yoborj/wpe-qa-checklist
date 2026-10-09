@@ -189,6 +189,7 @@ $('applyFixes').addEventListener('click', async () => {
   $('fixManualTitle').textContent = `Fix request for a developer (${man})`;
   $('fixManual').replaceChildren(...plan.manual.map(m => el('li', {}, el('b', { text: m.title }), el('small', { text: m.reason }))));
   $('claudeRow').hidden = !man || !plan.claudeAvailable; $('claudeMissing').hidden = !man || plan.claudeAvailable;
+  $('claudeMissing').textContent = `${plan.claudeReason || ''} Until then these go into a fix request.`;
   $('fixClaude').checked = !!(man && plan.claudeAvailable);
   const sync = () => {
     const claude = $('fixClaude').checked && man > 0;

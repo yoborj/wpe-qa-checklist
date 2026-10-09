@@ -7,7 +7,7 @@ import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem 
 import { checkJob, fixJob } from '../lib/jobs.mjs';
 import { planFixes } from '../lib/fixers.mjs';
 import { report } from '../lib/report.mjs';
-import { claudeBin, RULES } from '../lib/claude.mjs';
+import { claudeStatus, RULES } from '../lib/claude.mjs';
 
 const HELP = `WPE QA Checklist — command line
 
@@ -107,13 +107,13 @@ try {
     case 'plan': {
       const s = site(rest[0]); const [tab] = tabArg(rest[1]);
       const p = planFixes(templates()[tab], getState(s.id).tabs[tab] || { items: {} }, s);
-      const data = { site: s.url, install: s.install, automatic: p.auto.map(a => ({ id: a.id, title: a.title, action: a.action })), needsDeveloper: p.manual.map(m => ({ id: m.id, title: m.title, reason: m.reason })), claudeAvailable: !!claudeBin() };
+      const data = { site: s.url, install: s.install, automatic: p.auto.map(a => ({ id: a.id, title: a.title, action: a.action })), needsDeveloper: p.manual.map(m => ({ id: m.id, title: m.title, reason: m.reason })), claude: claudeStatus() };
       if (json) out(null, data);
       else {
         console.log(`Apply approved fixes on ${s.url} (${templates()[tab].title}):`);
         console.log(data.automatic.length ? `\n1. Backup first (database + theme${p.auto.some(a => a.check === 'wp.plugins') ? ' + plugins' : ''}) to _wpeprivate/wpeqa-backups/ on the server.\n2. Automatic fixes:` : '\nNo automatic fixes.');
         data.automatic.forEach((a, i) => console.log(`   ${i + 1}. ${a.title}: ${a.action}`));
-        if (data.needsDeveloper.length) { console.log('\nNeed a developer (fix request, or --claude):'); data.needsDeveloper.forEach(m => console.log(`   - ${m.title} [${m.id}]: ${m.reason}`)); }
+        if (data.needsDeveloper.length) { console.log('\nNeed a developer (fix request, or --claude):'); data.needsDeveloper.forEach(m => console.log(`   - ${m.title} [${m.id}]: ${m.reason}`)); if (!data.claude.ok) console.log(`   (--claude unavailable: ${data.claude.reason})`); }
         if (!data.automatic.length && !data.needsDeveloper.length) console.log('Nothing approved. Approve items first (approve <site> <tab> <ids>).');
       }
       break;
