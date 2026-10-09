@@ -46,6 +46,33 @@ update WordPress core · set the admin email · replace the staging domain in th
 
 Plain **Run Tool** runs never change the site, so they don't take a backup.
 
+## Run it from Claude Code
+
+Clone the repo, open Claude Code in the folder and ask, for example:
+
+```
+/qa https://www.example.com
+```
+
+Claude reads `CLAUDE.md`, installs what's missing, adds the site, runs all four checklists and
+summarises what needs fixing. Tell it which items to fix (or tick them in the web app), then:
+
+```
+/fix example-com before-launch
+```
+
+Claude shows the plan, waits for your yes, runs the backed-up fix, then fixes the remaining
+fix-request items itself under the same production rules and verifies them. Read-only commands
+are pre-approved in `.claude/settings.json`; the `fix` command is not, so Claude Code also asks
+before running it.
+
+Everything the buttons do is also on the command line: `node bin/wpeqa.mjs help`.
+
+In the web app, the confirmation window has **Have Claude fix these** for items the app can't
+fix by itself: after the backup and automatic fixes it starts a headless Claude Code run on this
+Mac (your account) with the fix request and the production rules, streams its progress into the
+log, and marks each item fixed (then verified by a re-check) or skipped.
+
 ## Requirements
 
 - macOS with **Google Chrome** installed (or set `CHROME_PATH`).
@@ -53,6 +80,7 @@ Plain **Run Tool** runs never change the site, so they don't take a backup.
 - Your SSH key added to WP Engine (User Portal → Profile → SSH keys), so
   `ssh <install>@<install>.ssh.wpengine.net` works without a password.
 - For re-importing checklists: Python 3 with `openpyxl`.
+- For Claude features: Claude Code (`claude`) installed and signed in.
 
 ## Run it
 
