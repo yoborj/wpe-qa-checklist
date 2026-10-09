@@ -9,6 +9,10 @@ A row with only a Task is a section heading. Rows listed in AUTO get a check key
 Run Tool runner for that tab knows how to verify; every other row stays a manual item.
 Sections in APPLIES_IF only count when the site uses that builder (otherwise the runner marks
 them N/A).
+
+Agency details are kept out of the repo: values from config/agency.json (emails, provider names)
+become {{placeholders}}, and people's names in the Assignee column (and "<Name>'s" in text) become
+the role they hold there. The app fills them back in from the same local file.
 """
 import json, re, sys, pathlib
 import openpyxl
@@ -101,6 +105,34 @@ AUTO = {
 APPLIES_IF = {'Elementor': 'elementor', 'YOOtheme': 'yootheme'}
 
 
+def load_agency():
+    for f in ('agency.json', 'agency.example.json'):
+        try:
+            return json.loads((ROOT / 'config' / f).read_text())
+        except (OSError, ValueError):
+            pass
+    return {}
+
+
+AGENCY = load_agency()
+PEOPLE = {name: role for role, name in (AGENCY.get('people') or {}).items() if name}
+# Longest values first so "hello@agency.com" wins over a shorter overlapping value.
+VALUES = sorted(((k, v) for k, v in AGENCY.items() if isinstance(v, str) and v and not k.startswith('_')), key=lambda kv: -len(kv[1]))
+
+
+def generic_text(t):
+    for key, val in VALUES:
+        t = re.sub(re.escape(val), '{{%s}}' % key, t, flags=re.I)
+    for name in PEOPLE:
+        t = re.sub(r"\(?\b%s's\)?" % re.escape(name), '({{agencyName}})', t)
+    return t
+
+
+def generic_owner(o):
+    parts = [p.strip() for p in str(o).split('/')]
+    return ' / '.join(PEOPLE.get(p, p) for p in parts)
+
+
 def slug(s):
     return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')[:60]
 
@@ -126,8 +158,8 @@ def build(wb, key):
             'id': f"{current['id']}--{slug(task)}",
             'row': i,
             'title': task,
-            'description': str(desc),
-            'owner': str(who),
+            'description': generic_text(str(desc)),
+            'owner': generic_owner(who),
             'check': AUTO[key].get(task),
         })
     unmapped = set(AUTO[key]) - {it['title'] for s in sections for it in s['items']}

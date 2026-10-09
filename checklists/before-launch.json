@@ -52,7 +52,7 @@
      "id": "basic-checklist--client-communication",
      "row": 8,
      "title": "Client communication",
-     "description": "The Website Transfer Agreement has been sent to the client.",
+     "description": "The {{transferAgreement}} has been sent to the client.",
      "owner": "Account Manager",
      "check": null
     }
@@ -389,7 +389,7 @@
      "id": "wordpress-settings--correct-wordpress-admin-email",
      "row": 51,
      "title": "Correct WordPress admin email",
-     "description": "The site admin email is developer@example.com, with a matching Administrator user added to the password sheet.",
+     "description": "The site admin email is {{adminEmail}}, with a matching Administrator user added to the {{passwordStore}}.",
      "owner": "Claude",
      "check": "wp.adminEmail"
     },
@@ -435,7 +435,7 @@
      "id": "security-and-updates--migrated-to-wp-engine",
      "row": 57,
      "title": "Migrated to WP Engine",
-     "description": "The site is migrated to the correct (Account Manager's) WP Engine account.",
+     "description": "The site is migrated to the correct ({{agencyName}}) WP Engine account.",
      "owner": "Devs",
      "check": null
     },

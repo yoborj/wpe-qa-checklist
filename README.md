@@ -109,6 +109,20 @@ Results, screenshots, Lighthouse reports and your checklist ticks are saved unde
 (git-ignored). A status you set by hand is kept when Run Tool runs again; the tool's latest
 finding still shows, with **use tool result** to switch back.
 
+## Your agency's details
+
+Checklist text refers to agency details as placeholders (`{{adminEmail}}`, `{{teamEmail}}`,
+`{{callTrackingProvider}}`, …) and owners are roles (Account Manager, Domain & DNS, …), so the repo
+stays generic. Fill in yours once:
+
+```
+cp config/agency.example.json config/agency.json
+```
+
+`config/agency.json` is git-ignored. Its values are shown everywhere in the app, reports and Claude
+prompts, and `people` puts names next to roles (e.g. "Account Manager (Alex)"). The admin email is
+also the default "expected admin email" for new sites.
+
 ## Updating the checklists from the Audit Sheet
 
 ```
@@ -116,7 +130,8 @@ npm run import-sheet -- "/path/to/Audit Sheet.xlsx"
 ```
 
 This rewrites `checklists/before-launch.json` and `checklists/after-launch.json` from the
-"QA — Before Launch" and "QA — After Launch" tabs. Which rows are automatic is set by the `AUTO`
+"QA — Before Launch" and "QA — After Launch" tabs, turning your `config/agency.json` values back
+into placeholders and people's names into their roles, so nothing agency-specific is committed. Which rows are automatic is set by the `AUTO`
 map in `scripts/import-sheet.py`; a renamed row there stops the import with an error rather than
 silently losing its check. Saved ticks are keyed by section + title, so renaming a row starts it
 fresh.

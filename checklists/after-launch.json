@@ -142,7 +142,7 @@
      "id": "call-tracking-settings--call-tracking-tool",
      "row": 20,
      "title": "Call tracking tool?",
-     "description": "Confirm whether this client will have call tracking managed by your call-tracking provider.",
+     "description": "Confirm whether this client will have call tracking managed by {{callTrackingProvider}}.",
      "owner": "Tech Lead",
      "check": null
     },
@@ -150,7 +150,7 @@
      "id": "call-tracking-settings--call-tracking-code-installed",
      "row": 21,
      "title": "Call tracking code installed",
-     "description": "We have access to the call-tracking account and the call-tracking code is installed on the site.",
+     "description": "We have access to the {{callTrackingTool}} account and the call-tracking code is installed on the site.",
      "owner": "Tech Lead",
      "check": null
     },
@@ -159,7 +159,7 @@
      "row": 22,
      "title": "Call tracking onboarding doc",
      "description": "The correct call-tracking onboarding document has been copied and linked in the Notes column.",
-     "owner": "SEO/Account Manager",
+     "owner": "SEO / Account Manager",
      "check": null
     }
    ]
@@ -173,15 +173,15 @@
      "id": "analytics-and-tracking--access-to-analytics-account",
      "row": 24,
      "title": "Access to analytics account",
-     "description": "If the client has a GA account, admin access is shared with hello@example.com; otherwise a new property is created.",
-     "owner": "SEO/Account Manager",
+     "description": "If the client has a GA account, admin access is shared with {{teamEmail}}; otherwise a new property is created.",
+     "owner": "SEO / Account Manager",
      "check": null
     },
     {
      "id": "analytics-and-tracking--set-up-google-tag-manager",
      "row": 25,
      "title": "Set up Google Tag Manager",
-     "description": "If the client has a GTM account, admin access is shared with hello@example.com; otherwise a new account is created.",
+     "description": "If the client has a GTM account, admin access is shared with {{teamEmail}}; otherwise a new account is created.",
      "owner": "Devs",
      "check": null
     },

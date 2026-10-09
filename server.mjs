@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import { ROOT, DATA, TABS, templates, listSites, getSite, saveSite, deleteSite, getState, setItem, runDir } from './lib/store.mjs';
 import { checkJob, fixJob, newRunId, runLogger } from './lib/jobs.mjs';
 import { claudeStatus } from './lib/claude.mjs';
+import { agency } from './lib/config.mjs';
 import { planFixes } from './lib/fixers.mjs';
 import { report } from './lib/report.mjs';
 
@@ -55,6 +56,7 @@ const server = http.createServer(async (req, res) => {
     if (p[0] !== 'api') return send(res, 404, { error: 'Not found' });
 
     if (req.method === 'GET' && p[1] === 'checklists') return send(res, 200, templates());
+    if (req.method === 'GET' && p[1] === 'config') { const a = agency(); return send(res, 200, { adminEmail: a.adminEmail || '', configured: a._source === 'agency.json' }); }
     if (req.method === 'GET' && p[1] === 'sites' && !p[2]) return send(res, 200, listSites());
     if (req.method === 'POST' && p[1] === 'sites' && !p[2]) return send(res, 200, await saveSite(await body(req)));
 

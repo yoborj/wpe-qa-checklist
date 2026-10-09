@@ -1,0 +1,17 @@
+{
+  "_help": "Copy this file to config/agency.json (git-ignored) and fill in your agency's details. Checklist text uses these as {{placeholders}}; people are shown next to the role they hold.",
+  "agencyName": "your agency",
+  "adminEmail": "developer@example.com",
+  "teamEmail": "hello@example.com",
+  "passwordStore": "password manager",
+  "transferAgreement": "website handover agreement",
+  "callTrackingProvider": "your agency",
+  "callTrackingTool": "call-tracking",
+  "people": {
+    "Account Manager": "",
+    "Tech Lead": "",
+    "SEO": "",
+    "Devs": "",
+    "Domain & DNS": ""
+  }
+}

@@ -14,10 +14,10 @@ const copy = async (text, btn) => { try { await navigator.clipboard.writeText(te
 const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
-let templates = {}, sites = [], current = null, data = null, tab = store.get('wpeqa.tab') || 'qa-swarm', filter = 'all', stream = null;
+let config = {}, templates = {}, sites = [], current = null, data = null, tab = store.get('wpeqa.tab') || 'qa-swarm', filter = 'all', stream = null;
 
 async function boot() {
-  templates = await api('/checklists');
+  [templates, config] = await Promise.all([api('/checklists'), api('/config')]);
   await loadSites(store.get('wpeqa.site'));
 }
 
@@ -89,7 +89,7 @@ function itemRow(it) {
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) })) : null;
   return el('article', { class: 'item', 'data-status': status, 'data-auto': it.check ? '1' : '0' },
     el('div', { class: 'item-main' },
-      el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
+      el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
       el('p', { class: 'item-desc', text: it.description }),
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
       details),
@@ -134,7 +134,7 @@ function openDialog(site) {
   editing = site;
   $('siteDialogTitle').textContent = site ? 'Site settings' : 'Add site';
   $('fUrl').value = site?.url || ''; $('fInstall').value = site?.install || '';
-  $('fName').value = site?.name || ''; $('fEmail').value = site?.adminEmail ?? 'developer@example.com';
+  $('fName').value = site?.name || ''; $('fEmail').value = site?.adminEmail ?? config.adminEmail ?? '';
   $('fRef').value = site?.referenceUrl || ''; $('fMax').value = site?.maxPages || 80;
   $('deleteSite').hidden = !site; $('siteErr').hidden = true;
   $('siteDialog').showModal();

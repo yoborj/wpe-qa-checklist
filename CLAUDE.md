@@ -17,7 +17,10 @@ The same data is shown in the web app (`npm start` → http://localhost:4646).
 4. The pre-approved commands in `.claude/settings.json` only apply once the folder is trusted:
    if you are asked for permission on read-only `wpeqa` commands, tell the person to open `claude`
    in this folder once and accept the trust prompt.
-5. The `--claude` hand-off (and the web app's "Have Claude fix these") needs the `claude` command
+5. Agency details (emails, provider names, who holds each role) come from `config/agency.json`
+   (git-ignored). If it's missing, copy `config/agency.example.json` to it and ask the person for
+   the values. Checklist text uses them as {{placeholders}}; keep the committed checklists generic.
+6. The `--claude` hand-off (and the web app's "Have Claude fix these") needs the `claude` command
    signed in on this Mac: `claude auth status`. If it isn't, they run `claude auth login`.
 
 ## When someone asks you to QA a site
