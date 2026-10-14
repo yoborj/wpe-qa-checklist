@@ -143,3 +143,6 @@ dialog label small { font-weight: 400; color: var(--faint); }
 
 @media (max-width: 760px) { .item { grid-template-columns: 1fr; } .item-side { justify-items: start; } select { min-width: 0; flex: 1; } }
 @media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+
+.item-suggest{margin:8px 0 0;padding:8px 12px;border-radius:8px;background:rgba(80,160,255,.08);border-left:3px solid #4c8dff;font-size:13.5px;line-height:1.45}
+.item-suggest .chip{margin-left:8px}
