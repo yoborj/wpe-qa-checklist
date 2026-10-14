@@ -102,7 +102,10 @@ Run Tool is **read-only** (fix runs are separate, below):
   prints them as JSON. It changes nothing. (It does ask WordPress to refresh its plugin/core
   update check, the same thing WP-Admin does on its own.)
 - In Chrome it loads the site's pages like a visitor: no logins, no form submissions, no clicks
-  except opening the phone menu.
+  except opening the phone menu. It scrolls through each page before checking it, so lazy-loaded
+  images and scripts that speed plugins hold back until the first scroll are checked too. The cookie
+  consent check also scrolls and moves the mouse (never clicking the banner), because holding
+  trackers back until the first scroll is not consent.
 - Lighthouse runs against the homepage from this Mac.
 
 Results, screenshots, Lighthouse reports and your checklist ticks are saved under `data/`
