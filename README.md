@@ -25,7 +25,9 @@ Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 Elementor and YOOtheme sections are kept but marked N/A automatically unless the site uses them.
 
 
-![QA — Before Launch, showing items that need attention with Approve / Decline](docs/qa-before-launch.png)
+![QA — Before Launch, showing items that need attention with screenshots, a suggested fix, and Approve / Decline](docs/qa-before-launch.png)
+
+![One item up close: the phone number framed in red on the page, and the suggested fix](docs/qa-item-detail.png)
 
 ![Apply approved fixes: backup first, the automatic fixes, and what goes to Claude or a developer](docs/qa-apply-fixes.png)
 
