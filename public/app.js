@@ -93,6 +93,9 @@ function itemRow(it) {
       el('p', { class: 'item-desc', text: it.description }),
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
       details,
+      s.tool?.shots?.length && ['fail', 'warn'].includes(s.tool.status) ? el('div', { class: 'shots' }, s.tool.shots.map(sh => el('a', { class: 'shot', href: sh.file, target: '_blank', rel: 'noopener', title: `${sh.page} · ${sh.label} (opens full size)` },
+        el('img', { src: sh.file, alt: `${sh.label} on ${sh.page}`, loading: 'lazy' }),
+        el('span', { text: `${sh.page} · ${sh.label}${sh.found ? '' : ' (not pinpointed; page view)'}` })))) : null,
       s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'Suggested fix: ' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
     el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: fixLabel(s.fix) }) : null),
     el('div', { class: 'item-extra' }, note, fix));
