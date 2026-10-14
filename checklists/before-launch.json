@@ -1091,7 +1091,7 @@
   {
    "id": "tailwind-custom",
    "title": "Tailwind/Custom",
-   "appliesIf": null,
+   "appliesIf": "tailwind",
    "items": [
     {
      "id": "tailwind-custom--tailwind-v4-build-process",
@@ -1099,7 +1099,7 @@
      "title": "Tailwind v4 build process",
      "description": "Verify package uses @tailwindcss/postcss and not old postcss-cli flags. Build pipeline must output correctly.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.v4"
     },
     {
      "id": "tailwind-custom--content-and-purge-paths-complete",
@@ -1107,7 +1107,7 @@
      "title": "Content and purge paths complete",
      "description": "All template files PHP, Blade, Twig, JS are in Tailwind content detection. No utility classes purged on dynamic pages.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.purged"
     },
     {
      "id": "tailwind-custom--production-build-runs-clean",
@@ -1115,7 +1115,7 @@
      "title": "Production build runs clean",
      "description": "npm run build produces minified and purged CSS with no dev mode artifacts or hot reload code.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.buildClean"
     },
     {
      "id": "tailwind-custom--preflight-wp-conflict-check",
@@ -1131,7 +1131,7 @@
      "title": "CSS enqueue order correct",
      "description": "Tailwind CSS loads in the correct order relative to WordPress core styles - check enqueue priority in functions.php.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.enqueueOrder"
     },
     {
      "id": "tailwind-custom--safelist-dynamic-classes",
@@ -1139,7 +1139,7 @@
      "title": "Safelist dynamic classes",
      "description": "Classes generated from ACF or PHP logic are added to the safelist in tailwind.config.js so they survive purge.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.purged"
     },
     {
      "id": "tailwind-custom--apply-directives-compile",
@@ -1171,7 +1171,7 @@
      "title": "Build tool asset paths correct",
      "description": "If Vite is used, confirm production build outputs correct public asset paths with no localhost references in source.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.assetPaths"
     },
     {
      "id": "tailwind-custom--custom-breakpoints-match-design",
@@ -1195,7 +1195,7 @@
      "title": "Production build is latest",
      "description": "Confirm the final production build ran immediately before go live. No dev mode CSS or stale compiled output.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.buildLatest"
     }
    ]
   }

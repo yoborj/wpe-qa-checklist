@@ -426,7 +426,7 @@
   {
    "id": "tailwind-custom",
    "title": "Tailwind/Custom",
-   "appliesIf": null,
+   "appliesIf": "tailwind",
    "items": [
     {
      "id": "tailwind-custom--no-missing-utility-classes",
@@ -434,7 +434,7 @@
      "title": "No missing utility classes",
      "description": "Browse all pages and check for unstyled elements. Aggressive CSS purge is a common post launch find.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "tw.purged"
     },
     {
      "id": "tailwind-custom--no-cdn-fallback-in-production",
@@ -450,7 +450,7 @@
      "title": "Build pipeline documented",
      "description": "If no CI or CD: confirm build steps are documented so any developer can rebuild CSS after template changes.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.buildDocs"
     },
     {
      "id": "tailwind-custom--wp-core-update-compatibility",
@@ -458,7 +458,7 @@
      "title": "WP core update compatibility",
      "description": "After every WordPress update, verify core CSS changes do not conflict with Tailwind styles.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.coreCompat"
     },
     {
      "id": "tailwind-custom--acf-dynamic-content-styled",
@@ -466,7 +466,7 @@
      "title": "ACF dynamic content styled",
      "description": "Verify all ACF custom fields display with correct Tailwind styling. No classes purged from dynamic output.",
      "owner": "Devs",
-     "check": null
+     "check": "tw.acfPurged"
     },
     {
      "id": "tailwind-custom--forms-and-interactive-elements",

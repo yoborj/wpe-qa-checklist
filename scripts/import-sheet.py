@@ -72,6 +72,13 @@ AUTO = {
         'WP memory limit 256M or more': 'wp.memoryLimit',
         'PHP seven 7.4 or higher': 'wp.phpVersion',
         'No source maps in production': 'http.sourceMaps',
+        'Tailwind v4 build process': 'tw.v4',
+        'Content and purge paths complete': 'tw.purged',
+        'Production build runs clean': 'tw.buildClean',
+        'CSS enqueue order correct': 'tw.enqueueOrder',
+        'Safelist dynamic classes': 'tw.purged',
+        'Build tool asset paths correct': 'tw.assetPaths',
+        'Production build is latest': 'tw.buildLatest',
     },
     'after-launch': {
         'Anti-spam reCAPTCHA installed': 'html.recaptcha',
@@ -98,11 +105,15 @@ AUTO = {
         'No JS errors post launch': 'browser.consoleErrors',
         'No CDN fallback in production': 'html.noTailwindCdn',
         'Forms and interactive elements': 'browser.interactive',
+        'No missing utility classes': 'tw.purged',
+        'Build pipeline documented': 'tw.buildDocs',
+        'WP core update compatibility': 'wp.coreCompat',
+        'ACF dynamic content styled': 'tw.acfPurged',
     },
 }
 
 # Sections that only apply when the site uses that builder.
-APPLIES_IF = {'Elementor': 'elementor', 'YOOtheme': 'yootheme'}
+APPLIES_IF = {'Elementor': 'elementor', 'YOOtheme': 'yootheme', 'Tailwind/Custom': 'tailwind'}
 
 
 def load_agency():

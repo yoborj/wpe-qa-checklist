@@ -86,7 +86,7 @@ function render() {
   renderSecNav(tpl);
   $('sections').replaceChildren(...tpl.sections.map(sec => {
     const rows = sec.items.map(it => itemRow(it));
-    return el('section', { class: 'section', 'data-sec': sec.title }, el('h2', {}, sec.title, sec.appliesIf ? el('small', { text: { elementor: '· only when Elementor is active', yootheme: '· only for YOOtheme sites', reference: '· needs a reference site' }[sec.appliesIf] }) : null), el('div', { class: 'items' }, rows));
+    return el('section', { class: 'section', 'data-sec': sec.title }, el('h2', {}, sec.title, sec.appliesIf ? el('small', { text: { elementor: '· only when Elementor is active', yootheme: '· only for YOOtheme sites', tailwind: '· only for Tailwind builds', reference: '· needs a reference site' }[sec.appliesIf] }) : null), el('div', { class: 'items' }, rows));
   }));
   applyFilter();
 }
