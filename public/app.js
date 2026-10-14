@@ -19,6 +19,8 @@ const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it 
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
 let config = {}, templates = {}, sites = [], current = null, data = null, tab = store.get('wpeqa.tab') || 'qa-swarm', filter = 'all', stream = null;
+// Which section each checklist tab shows ('all' or a section title), remembered per tab.
+let secSel = (() => { try { return JSON.parse(store.get('wpeqa.sec') || '{}'); } catch { return {}; } })();
 
 async function boot() {
   [templates, config] = await Promise.all([api('/checklists'), api('/config')]);
@@ -65,6 +67,7 @@ function render() {
   $('reportLink').hidden = tab === 'urls';
   document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Needs redirect' : 'Needs attention';
   document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'No redirect' : 'Manual';
+  $('secNav').hidden = tab === 'urls';
   if (tab === 'urls') return renderUrls();
   const tpl = templates[tab]; const ts = tabState(tab);
   const last = ts.runs?.[0];
@@ -80,11 +83,32 @@ function render() {
   const counts = Object.fromEntries(Object.keys(LABEL).map(k => [k, items.filter(i => statusOf(tab, i) === k).length]));
   $('counts').replaceChildren(...Object.keys(TILE).map(k => el('div', { class: `count c-${k}` }, el('b', { text: String(counts[k]) }), el('span', { text: TILE[k] }))), el('div', { class: 'count c-auto' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
 
+  renderSecNav(tpl);
   $('sections').replaceChildren(...tpl.sections.map(sec => {
     const rows = sec.items.map(it => itemRow(it));
-    return el('section', { class: 'section' }, el('h2', {}, sec.title, sec.appliesIf ? el('small', { text: { elementor: '· only when Elementor is active', yootheme: '· only for YOOtheme sites', reference: '· needs a reference site' }[sec.appliesIf] }) : null), el('div', { class: 'items' }, rows));
+    return el('section', { class: 'section', 'data-sec': sec.title }, el('h2', {}, sec.title, sec.appliesIf ? el('small', { text: { elementor: '· only when Elementor is active', yootheme: '· only for YOOtheme sites', reference: '· needs a reference site' }[sec.appliesIf] }) : null), el('div', { class: 'items' }, rows));
   }));
   applyFilter();
+}
+
+// Section switcher: one pill per section, badge = failed/flagged items in it.
+function renderSecNav(tpl) {
+  const secs = tpl.sections;
+  if (secSel[tab] && secSel[tab] !== 'all' && !secs.some(s => s.title === secSel[tab])) secSel[tab] = 'all';
+  if (!secSel[tab]) secSel[tab] = secs[0]?.title || 'all';
+  const pick = t => { secSel[tab] = t; store.set('wpeqa.sec', JSON.stringify(secSel)); renderSecNav(tpl); applyFilter(); window.scrollTo({ top: $('secNav').offsetTop - 90, behavior: 'smooth' }); };
+  const badge = items => {
+    const st = items.map(i => statusOf(tab, i));
+    const bad = st.filter(x => x === 'fail' || x === 'warn').length;
+    if (bad) return el('span', { class: 'sbadge bad', text: String(bad) });
+    if (st.every(x => x === 'na')) return el('span', { class: 'sbadge na', text: 'n/a' });
+    if (st.some(x => x === 'pass') && st.every(x => ['pass', 'na'].includes(x))) return el('span', { class: 'sbadge ok', text: '✓' });
+    return el('span', { class: 'sbadge', text: String(items.length) });
+  };
+  const all = secs.flatMap(s => s.items);
+  $('secNav').replaceChildren(
+    el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === 'all'), onclick: () => pick('all') }, 'All', badge(all)),
+    ...secs.map(sec => el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === sec.title), class: sec.items.every(i => statusOf(tab, i) === 'na') ? 'is-na' : null, onclick: () => pick(sec.title) }, sec.title, badge(sec.items))));
 }
 
 function itemRow(it) {
@@ -138,7 +162,10 @@ function applyFilter() {
     const st = r.dataset.status; const hide = r.classList.contains('urow') ? (filter === 'attention' ? st === 'none' : filter === 'manual' ? st !== 'none' : false) : filter === 'attention' ? !['fail', 'warn'].includes(st) : filter === 'manual' ? r.dataset.auto === '1' : false;
     r.classList.toggle('hidden-by-filter', hide);
   });
-  document.querySelectorAll('.section').forEach(s => { s.hidden = !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)'); });
+  const pickSec = tab !== 'urls' ? secSel[tab] || 'all' : 'all';
+  let shown = 0;
+  document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)'); if (!s.hidden) shown++; });
+  $('secEmpty').hidden = tab === 'urls' || shown > 0;
 }
 
 function setRunning(on) { $('runTool').disabled = on; $('applyFixes').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
@@ -320,5 +347,9 @@ async function openRedirectsDialog() {
   $('fixConfirm').checked = false; $('fixGo').disabled = true;
   $('fixDialog').showModal();
 }
+
+// The section switcher sticks just under the header, whatever its height.
+const setHdr = () => document.documentElement.style.setProperty('--hdr', document.querySelector('.topbar').offsetHeight + 'px');
+window.addEventListener('resize', setHdr); setHdr();
 
 boot().catch(e => { document.body.prepend(el('p', { class: 'err', text: 'Could not load: ' + e.message })); });

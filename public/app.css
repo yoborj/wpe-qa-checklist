@@ -269,3 +269,22 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .unewonly ul { margin: 14px 0 4px; padding-left: 20px; display: grid; gap: 8px; }
 .unewonly li a { font-family: var(--mono); font-size: 15.5px; }
 .unewonly li span { margin-left: 10px; color: var(--faint); font-size: 15.5px; }
+
+/* Section switcher */
+.secnav {
+  position: sticky; top: calc(var(--hdr, 72px) + 8px); z-index: 5; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; margin: 0 0 26px; padding: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: saturate(1.5) blur(12px); -webkit-backdrop-filter: saturate(1.5) blur(12px);
+  border: 1px solid var(--line); border-radius: 15px; box-shadow: var(--shadow);
+}
+.secnav button {
+  display: inline-flex; align-items: center; gap: 8px; flex: none; padding: 8px 15px; border: 0; border-radius: 10px; background: none;
+  color: var(--faint); font-weight: 700; font-size: 15px; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s;
+}
+.secnav button:hover { background: var(--surface-2); color: var(--ink); }
+.secnav button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.secnav button.is-na { opacity: .6; }
+.sbadge { min-width: 22px; padding: 1px 7px; border-radius: 999px; font-size: 12.5px; text-align: center; background: var(--na-soft); color: var(--faint); font-variant-numeric: tabular-nums; }
+.sbadge.bad { background: var(--fail-soft); color: var(--fail); }
+.sbadge.ok { background: var(--pass-soft); color: var(--pass); }
+.secnav button[aria-pressed="true"] .sbadge { background: color-mix(in srgb, var(--surface) 22%, transparent); color: var(--surface); }
+.sec-empty { margin: 0 0 24px; padding: 22px 26px; background: var(--surface); border: 1px dashed var(--line-2); border-radius: var(--r); color: var(--faint); }
