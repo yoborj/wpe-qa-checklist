@@ -17,6 +17,15 @@ Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
 Elementor and YOOtheme sections are kept but marked N/A automatically unless the site uses them.
 
+
+![QA — Before Launch, showing items that need attention with Approve / Decline](docs/qa-before-launch.png)
+
+![Apply approved fixes: backup first, the automatic fixes, and what goes to Claude or a developer](docs/qa-apply-fixes.png)
+
+![QA Swarm results for every page in the sitemap](docs/qa-swarm.png)
+
+Screenshots use a made-up demo site (example.com).
+
 ## Fixing approved items
 
 1. **Run Tool** finds the issues (read-only).
