@@ -114,10 +114,14 @@ function renderSecNav(tpl) {
 function itemRow(it) {
   const s = tabState(tab).items[it.id] || {}; const status = s.status || 'todo';
   const save = patch => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: patch }).then(v => { (data.state.tabs[tab] ||= { items: {}, runs: [] }).items[it.id] = v; render(); }).catch(e => alert(e.message));
-  const seg = el('div', { class: 'seg', role: 'group', 'aria-label': `Status of ${it.title}` }, STATUS.map(([k, label]) => el('button', { type: 'button', 'data-s': k, 'aria-pressed': String(status === k), title: LABEL[k], text: label, onclick: () => save({ status: k }) })));
-  const src = s.source === 'manual'
-    ? el('span', { class: 'src' }, `you · ${s.at ? ago(s.at) : ''}`, s.tool ? [' · ', el('button', { type: 'button', text: 'use tool result', onclick: () => save({ status: 'tool' }) })] : null)
-    : s.tool ? el('span', { class: 'src', text: ago(s.tool.at) }) : el('span', { class: 'src', text: it.check ? 'not run yet' : 'manual' });
+  // Automatic items: the scan decides the status (read-only). Manual items: a person marks them.
+  const auto = !!(it.check || s.tool);
+  const seg = auto
+    ? el('span', { class: `spill sp-${status}`, title: 'Set by Run Tool', text: s.tool ? LABEL[status] : 'Not run yet' })
+    : el('div', { class: 'seg', role: 'group', 'aria-label': `Status of ${it.title}` }, STATUS.map(([k, label]) => el('button', { type: 'button', 'data-s': k, 'aria-pressed': String(status === k), title: LABEL[k], text: label, onclick: () => save({ status: k }) })));
+  const src = auto
+    ? el('span', { class: 'src', text: s.tool ? `automatic · ${ago(s.tool.at)}` : 'automatic' })
+    : el('span', { class: 'src', text: s.source === 'manual' ? `you · ${s.at ? ago(s.at) : ''}` : 'manual check' });
   const details = s.tool?.details?.length ? el('details', {}, el('summary', { text: `${s.tool.details.length} detail${s.tool.details.length === 1 ? '' : 's'}` }), el('ul', {}, s.tool.details.map(d => el('li', {}, linkify(String(d)))))) : null;
   let t; const note = el('input', { type: 'text', value: s.note || '', placeholder: 'Add a note…', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
   const fix = ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },

@@ -18,7 +18,9 @@ that isn't a link, the H1, the form without anti-spam, the footer missing a link
 Click a thumbnail to see it large over the app (arrow keys step through an item's screenshots; Esc closes). Settings and header checks (indexing, robots.txt, GA tags) get the
 suggestion only, since there is nothing on the page to point at.
 
-Every item has **Pass / Fail / Look / N/A / To do** buttons and a note. Items that fail or need a look
+Automatic items show the status Run Tool found (read-only; a wrong finding is handled with
+**Decline**). Manual items, the ones no tool can check, have **Pass / Fail / Look / N/A / To do** buttons.
+Every item has a note. Items that fail or need a look
 get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the approved ones with a backup
 first (see below). **Report** opens a
 Markdown summary of the tab for pasting into the sheet, a ticket or a message.
@@ -153,8 +155,8 @@ Run Tool is **read-only** (fix runs are separate, below):
 - Lighthouse runs against the homepage from this Mac.
 
 Results, screenshots, Lighthouse reports and your checklist ticks are saved under `data/`
-(git-ignored). A status you set by hand is kept when Run Tool runs again; the tool's latest
-finding still shows, with **use tool result** to switch back.
+(git-ignored). Run Tool sets the status of every automatic item each time it runs; statuses you set on manual
+items are kept.
 
 ## Your agency's details
 
