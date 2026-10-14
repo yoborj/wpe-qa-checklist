@@ -77,6 +77,17 @@
   </form>
 </dialog>
 
+<dialog id="shotDialog" class="lightbox" aria-labelledby="shotCaption">
+  <figure>
+    <img id="shotImg" alt="">
+    <figcaption><span id="shotCaption"></span><span id="shotCount"></span></figcaption>
+  </figure>
+  <button type="button" class="lb-btn lb-close" id="shotClose" aria-label="Close">×</button>
+  <button type="button" class="lb-btn lb-prev" id="shotPrev" aria-label="Previous screenshot">‹</button>
+  <button type="button" class="lb-btn lb-next" id="shotNext" aria-label="Next screenshot">›</button>
+  <a id="shotOpen" class="lb-open" target="_blank" rel="noopener">Open full size in a new tab</a>
+</dialog>
+
 <dialog id="fixDialog" aria-labelledby="fixTitle">
   <div class="fixdlg">
     <h2 id="fixTitle">Apply approved fixes</h2>

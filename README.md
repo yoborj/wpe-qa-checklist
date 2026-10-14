@@ -14,7 +14,7 @@ Every failed or flagged item also shows a **Suggested fix** (plain WordPress ste
 fix** when the app has an automatic fix for it) and, where the problem is on the page, **screenshots**:
 Chrome opens the page and frames the problem in red (the image without alt text, the phone number
 that isn't a link, the H1, the form without anti-spam, the footer missing a link…), up to 3 per item.
-Click a thumbnail for full size. Settings and header checks (indexing, robots.txt, GA tags) get the
+Click a thumbnail to see it large over the app (arrow keys step through an item's screenshots; Esc closes). Settings and header checks (indexing, robots.txt, GA tags) get the
 suggestion only, since there is nothing on the page to point at.
 
 Every item has **Pass / Fail / Look / N/A / To do** buttons and a note. Items that fail or need a look

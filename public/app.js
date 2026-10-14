@@ -93,13 +93,32 @@ function itemRow(it) {
       el('p', { class: 'item-desc', text: it.description }),
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
       details,
-      s.tool?.shots?.length && ['fail', 'warn'].includes(s.tool.status) ? el('div', { class: 'shots' }, s.tool.shots.map(sh => el('a', { class: 'shot', href: sh.file, target: '_blank', rel: 'noopener', title: `${sh.page} · ${sh.label} (opens full size)` },
+      s.tool?.shots?.length && ['fail', 'warn'].includes(s.tool.status) ? el('div', { class: 'shots' }, s.tool.shots.map((sh, i) => el('a', { class: 'shot', href: sh.file, title: `${sh.page} · ${sh.label} (click to enlarge)`, onclick: e => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); openShots(s.tool.shots, i); } },
         el('img', { src: sh.file, alt: `${sh.label} on ${sh.page}`, loading: 'lazy', 'data-kind': sh.kind || 'crop' }),
         el('span', { text: `${sh.page} · ${sh.label}${sh.found ? '' : ' (not pinpointed; page view)'}` })))) : null,
       s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'Suggested fix: ' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
     el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: fixLabel(s.fix) }) : null),
     el('div', { class: 'item-extra' }, note, fix));
 }
+
+// Screenshot lightbox: the item's screenshots, one at a time, over the app.
+let shotList = [], shotAt = 0;
+function showShot() {
+  const sh = shotList[shotAt];
+  $('shotImg').src = sh.file; $('shotImg').alt = `${sh.label} on ${sh.page}`;
+  $('shotCaption').textContent = `${sh.page} · ${sh.label}${sh.found === false ? ' (not pinpointed; page view)' : ''}`;
+  $('shotCount').textContent = shotList.length > 1 ? `${shotAt + 1} of ${shotList.length}` : '';
+  $('shotOpen').href = sh.file;
+  $('shotPrev').hidden = $('shotNext').hidden = shotList.length < 2;
+}
+function openShots(list, i) { shotList = list; shotAt = i; showShot(); $('shotDialog').showModal(); $('shotClose').focus(); }
+const stepShot = d => { if (shotList.length < 2) return; shotAt = (shotAt + d + shotList.length) % shotList.length; showShot(); };
+$('shotClose').onclick = () => $('shotDialog').close();
+$('shotPrev').onclick = () => stepShot(-1);
+$('shotNext').onclick = () => stepShot(1);
+$('shotDialog').addEventListener('click', e => { if (e.target === $('shotDialog')) $('shotDialog').close(); });
+$('shotDialog').addEventListener('keydown', e => { if (e.key === 'ArrowLeft') stepShot(-1); if (e.key === 'ArrowRight') stepShot(1); });
+$('shotDialog').addEventListener('close', () => { $('shotImg').removeAttribute('src'); });
 
 function applyFilter() {
   document.querySelectorAll('.filters button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
