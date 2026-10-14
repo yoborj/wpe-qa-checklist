@@ -249,6 +249,8 @@ $('fixGo').addEventListener('click', async () => {
 });
 
 // ---------- Old → New URLs tab ----------
+// Addresses may break after / or - only, never mid-word.
+const pathText = t => String(t).split(/(?<=[\/-])/).flatMap((part, i) => i ? [el('wbr'), part] : [part]);
 function renderUrls() {
   const u = data.state.urls || {}; const rows = u.rows || []; const last = u.runs?.[0];
   $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
@@ -276,22 +278,21 @@ function renderUrls() {
     const e = eff(r);
     const status = el('select', { class: `ustatus us-${e.status}`, 'aria-label': `Status of ${r.oldPath}`, onchange: ev => save(r, { status: ev.target.value }) }, Object.entries(URLST).map(([k, v]) => { const o = el('option', { value: k, text: v }); if (k === e.status) o.selected = true; return o; }));
     const target = e.status === 'none'
-      ? (e.target ? el('a', { class: 'utarget', href: origin + e.target, target: '_blank', rel: 'noopener', text: e.target }) : el('span', { class: 'muted', text: '—' }))
+      ? (e.target ? el('a', { class: 'utarget', href: origin + e.target, target: '_blank', rel: 'noopener' }, pathText(e.target)) : el('span', { class: 'muted', text: '—' }))
       : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: '/new-page/', 'aria-label': `New URL for ${r.oldPath}`, onchange: ev => save(r, { target: ev.target.value }) });
     const decide = e.status === 'none' ? null : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
       el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.status === 'redirect' && e.target ? null : true, title: e.status === 'redirect' && e.target ? '' : 'Set the status to Redirect and a new URL first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
     return el('tr', { class: 'urow', 'data-status': e.status },
-      el('td', { class: 'upage' }, el('b', { text: r.page }), el('small', { text: r.auto?.reason || '' })),
-      el('td', {}, el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener', text: r.oldPath })),
-      el('td', {}, status),
-      el('td', {}, target),
+      el('td', { class: 'upage' }, el('b', { text: r.page }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
+      el('td', { class: 'ustat' }, status, el('small', { text: r.auto?.reason || '' })),
+      el('td', { class: 'unew' }, target),
       el('td', { class: 'udecide' }, decide, result(r)));
   });
   $('sections').replaceChildren(el('section', { class: 'section' },
     el('h2', {}, 'Old site', el('small', { text: `${current.referenceUrl.replace(/^https?:\/\//, '')} → ${origin.replace(/^https?:\/\//, '')} · redirects go into the Redirection plugin` })),
     el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
-      el('thead', {}, el('tr', {}, ['Page', 'Old URL', 'Status', 'New URL', ''].map(h => el('th', { text: h })))),
+      el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New URL', ''].map(h => el('th', { text: h })))),
       el('tbody', {}, body))), list));
   applyFilter();
 }
