@@ -10,6 +10,13 @@ A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, 
 | **QA — Before Launch** | The Audit Sheet's "QA — Before Launch" tab. 45 of 132 items are checked automatically (WordPress settings, plugins, updates, login URL, 404, alt text, tap-to-call phones, headings, tap targets, consent, security headers, schema, Lighthouse…). The rest are manual. |
 | **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 24 of 48 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
 
+Every failed or flagged item also shows a **Suggested fix** (plain WordPress steps; tagged **App can
+fix** when the app has an automatic fix for it) and, where the problem is on the page, **screenshots**:
+Chrome opens the page and frames the problem in red (the image without alt text, the phone number
+that isn't a link, the H1, the form without anti-spam, the footer missing a link…), up to 3 per item.
+Click a thumbnail for full size. Settings and header checks (indexing, robots.txt, GA tags) get the
+suggestion only, since there is nothing on the page to point at.
+
 Every item has **Pass / Fail / Look / N/A / To do** buttons and a note. Items that fail or need a look
 get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the approved ones with a backup
 first (see below). **Report** opens a
@@ -110,6 +117,8 @@ Run Tool is **read-only** (fix runs are separate, below):
 - Over SSH it runs one `wp eval-file` that reads settings, plugins, users, posts and options and
   prints them as JSON. It changes nothing. (It does ask WordPress to refresh its plugin/core
   update check, the same thing WP-Admin does on its own.)
+- Pages come from the XML sitemap. Before launch, when "Discourage search engines" turns WordPress's
+  sitemaps off, the app follows the site's own links (menus, footer, page content) two levels deep.
 - In Chrome it loads the site's pages like a visitor: no logins, no form submissions, no clicks
   except opening the phone menu. It scrolls through each page before checking it, so lazy-loaded
   images and scripts that speed plugins hold back until the first scroll are checked too. The cookie
@@ -164,6 +173,8 @@ server.mjs              local web server and run queue (SSE progress)
 lib/wpe.mjs             SSH + WP-CLI facts (read-only)
 lib/crawl.mjs           sitemap discovery and Chrome page snapshots
 lib/checks.mjs          every automatic check
+lib/suggest.mjs         suggested fix per check
+lib/evidence.mjs        screenshots of where each flagged problem is
 lib/run.mjs             runs a tab: loads data once, runs its checks, writes results
 lib/fixers.mjs          automatic fixes for approved items + fix request text
 lib/fixrun.mjs          fix run: backup, fixes, cache clear
