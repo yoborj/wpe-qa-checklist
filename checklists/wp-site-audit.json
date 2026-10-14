@@ -76,7 +76,7 @@
      "title": "No stale navigation",
      "description": "Menus, footer and body copy only mention services and pages that still exist.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "crawl.navLinks"
     },
     {
      "id": "nav--leaks",

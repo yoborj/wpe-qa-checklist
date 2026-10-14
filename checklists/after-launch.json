@@ -14,7 +14,7 @@
      "title": "Contact form 'From' email updated",
      "description": "After launch, the Contact Form 7 'From' field is set to an address on the live domain to avoid validation errors.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.cf7From"
     },
     {
      "id": "contact-form--anti-spam-recaptcha-installed",
@@ -37,7 +37,7 @@
      "title": "Mobile-friendly test",
      "description": "The site passes Google's Mobile-Friendly Test.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.mobileFriendly"
     }
    ]
   },
@@ -152,7 +152,7 @@
      "title": "Call tracking code installed",
      "description": "We have access to the {{callTrackingTool}} account and the call-tracking code is installed on the site.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "html.callTracking"
     },
     {
      "id": "call-tracking-settings--call-tracking-onboarding-doc",
@@ -356,7 +356,7 @@
      "title": "Pro license on live domain",
      "description": "Confirm Elementor Pro license is activated for the live domain and not just staging.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.elementorLicense"
     },
     {
      "id": "elementor--dom-count-not-increased",
@@ -379,7 +379,7 @@
      "title": "CSS file accessible post deploy",
      "description": "After deployment, verify yootheme CSS loads without 403 forbidden. Permissions can reset on deploy.",
      "owner": "Devs",
-     "check": null
+     "check": "crawl.yooAssets"
     },
     {
      "id": "yootheme--no-js-errors-post-launch",
@@ -403,7 +403,7 @@
      "title": "File permissions persist",
      "description": "Some hosts reset folder permissions on deployment. Re verify yootheme directory after each deploy.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.yooPerms"
     },
     {
      "id": "yootheme--staging-to-prod-parity-check",

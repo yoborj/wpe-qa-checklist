@@ -140,7 +140,7 @@
      "title": "Navigation menu links",
      "description": "All menu links, parent and child, work and open the correct page.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "crawl.navLinks"
     },
     {
      "id": "ctas-and-links--internal-links",
@@ -171,7 +171,7 @@
      "title": "Phone number not hard-coded",
      "description": "The phone number is editable in one place (e.g. Theme Options) and updates site-wide, rather than being hard-coded per page.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "wp.phoneHardcoded"
     },
     {
      "id": "dynamic-information--phone-number-consistency",
@@ -187,7 +187,7 @@
      "title": "Address easily editable",
      "description": "Physical addresses are editable in one place (Theme Options or header/footer) and update across the site.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "wp.addressHardcoded"
     },
     {
      "id": "dynamic-information--dynamic-fields-display-correctly",
@@ -226,7 +226,7 @@
      "title": "Contact forms configured",
      "description": "All forms have the right fields with correct names, IDs, and required settings.",
      "owner": "Devs",
-     "check": null
+     "check": "crawl.formsConfigured"
     },
     {
      "id": "contact-form--notification-email-delivered",
@@ -250,7 +250,7 @@
      "title": "Inline form validation",
      "description": "Forms validate in real time, flagging input errors before the user submits.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "crawl.formValidation"
     },
     {
      "id": "contact-form--form-success-message",
@@ -273,7 +273,7 @@
      "title": "Mobile menu",
      "description": "The mobile menu looks correct — colors aren't inverted and the hamburger icon shows.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.mobileMenu"
     },
     {
      "id": "mobile--mobile-centering",
@@ -289,7 +289,7 @@
      "title": "Mobile navbar height",
      "description": "The mobile navbar is no taller than 82px.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.mobileNavHeight"
     },
     {
      "id": "mobile--mobile-nav-menu",
@@ -305,7 +305,7 @@
      "title": "Parent pages clickable on mobile",
      "description": "Parent menu items are reachable as links in the mobile dropdown, not just toggles.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.mobileParents"
     }
    ]
   },
@@ -320,7 +320,7 @@
      "title": "Old integrations transferred",
      "description": "Every third-party integration from the old site (e.g. HubSpot) has been carried over.",
      "owner": "Devs",
-     "check": null
+     "check": "urls.codesCarried"
     },
     {
      "id": "migration-checklist--migrate-301-redirects",
@@ -336,7 +336,7 @@
      "title": "Keep the same URL structure",
      "description": "URLs meant to stay the same keep their original structure and slug.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "urls.sameStructure"
     },
     {
      "id": "migration-checklist--compare-old-and-new-urls",
@@ -344,7 +344,7 @@
      "title": "Compare old and new URLs",
      "description": "All important URLs from the old site are present on the new site.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "urls.compare"
     },
     {
      "id": "migration-checklist--301-redirects-for-changed-urls",
@@ -352,7 +352,7 @@
      "title": "301 redirects for changed URLs",
      "description": "Any URL that changed or was removed has a 301 redirect to its new location.",
      "owner": "Devs",
-     "check": null
+     "check": "urls.redirectsDone"
     },
     {
      "id": "migration-checklist--migrate-yoast-settings",
@@ -360,7 +360,7 @@
      "title": "Migrate Yoast settings",
      "description": "Page and post titles, meta descriptions, and other Yoast settings carry over to the new site. https://wordpress.org/plugins/wordpress-seo/",
      "owner": "Devs",
-     "check": null
+     "check": "urls.seoCarried"
     },
     {
      "id": "migration-checklist--migrate-header-footer-codes",
@@ -368,7 +368,7 @@
      "title": "Migrate header/footer codes",
      "description": "All still-relevant header and footer codes from the old site are copied to the new one.",
      "owner": "Devs",
-     "check": null
+     "check": "urls.codesCarried"
     },
     {
      "id": "migration-checklist--add-google-tag-manager",
@@ -376,7 +376,7 @@
      "title": "Add Google Tag Manager",
      "description": "The Google Tag Manager container is added on staging for the AM to verify in the source.",
      "owner": "Devs",
-     "check": null
+     "check": "html.gtmPresent"
     }
    ]
   },
@@ -422,7 +422,7 @@
      "title": "WP Engine Advanced Network",
      "description": "WP Engine's Advanced Network is enabled for better performance (requires WP Engine hosting and DNS access).",
      "owner": "Devs",
-     "check": null
+     "check": "http.advancedNetwork"
     }
    ]
   },
@@ -437,7 +437,7 @@
      "title": "Migrated to WP Engine",
      "description": "The site is migrated to the correct ({{agencyName}}) WP Engine account.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.onWpEngine"
     },
     {
      "id": "security-and-updates--access-to-website-backups",
@@ -524,7 +524,7 @@
      "title": "Blog layout matches site",
      "description": "The Blog archive and Single Post templates match the overall site design.",
      "owner": "Devs",
-     "check": null
+     "check": "browser.blogTemplates"
     },
     {
      "id": "website-layout--category-layout-matches-site",
@@ -532,7 +532,7 @@
      "title": "Category layout matches site",
      "description": "Category archive pages match the overall site design.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.categoryTemplate"
     },
     {
      "id": "website-layout--template-hero-from-featured-image",
@@ -548,7 +548,7 @@
      "title": "Link colors on-brand and visible",
      "description": "Hyperlinks are a clearly different color from the body text (not the same dark/black) so they stand out — check inner/child pages too.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.linkColors"
     }
    ]
   },
@@ -602,7 +602,7 @@
      "title": "Nav menu has all key pages",
      "description": "The navigation menu links to all key pages so users can find what they need.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "crawl.navCoverage"
     },
     {
      "id": "design-and-ux--consistent-navigation",
@@ -610,7 +610,7 @@
      "title": "Consistent navigation",
      "description": "The navigation menu is identical across every page that has it.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "crawl.navConsistent"
     },
     {
      "id": "design-and-ux--logo-links-to-homepage",
@@ -689,7 +689,7 @@
      "title": "Search page",
      "description": "Confirm whether the site has a search page.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "http.searchPage"
     },
     {
      "id": "new-items--dummy-data-drafted",
@@ -697,7 +697,7 @@
      "title": "Dummy data drafted",
      "description": "Anything containing dummy data is set to draft.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "crawl.dummyContent"
     },
     {
      "id": "new-items--rename-default-blog-category",
@@ -728,7 +728,7 @@
      "title": "Point domain (A + CNAME)",
      "description": "The domain points to the host via both A and CNAME records.",
      "owner": "Domain & DNS",
-     "check": null
+     "check": "dns.pointsToWpe"
     },
     {
      "id": "domain-dns-settings--redirect-www-to-root",
@@ -759,7 +759,7 @@
      "title": "Correct CPTs indexed",
      "description": "Only the custom post types that should be indexed are indexed; others are excluded.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.cptIndexed"
     },
     {
      "id": "others--remove-placeholder-blogs",
@@ -782,7 +782,7 @@
      "title": "Color Contrast (WCAG 2.2)",
      "description": "All text must meet WCAG 2.2 Level AA contrast ratios: 4.5:1 for normal text, 3:1 for large text. The #1 accessibility failure — found on 83.9% of websites. SUCCESS: All text passes minimum ratios. FAIL: Any text fails — log page, element, colors, and actual ratio.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.contrast"
     },
     {
      "id": "accessibility-compliance-performance--keyboard-navigation",
@@ -790,7 +790,7 @@
      "title": "Keyboard Navigation",
      "description": "Verify entire site is navigable by keyboard only: Tab (forward), Shift+Tab (back), Enter/Space (activate), arrow keys (dropdowns). Every interactive element must be reachable without a mouse. SUCCESS: All elements reachable and operable. FAIL: Any element unreachable or creates keyboard trap — log page and element.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.keyboard"
     },
     {
      "id": "accessibility-compliance-performance--focus-indicators-visible",
@@ -798,7 +798,7 @@
      "title": "Focus Indicators Visible",
      "description": "A visible focus ring must appear on all interactive elements when navigated via keyboard. WCAG 2.2 SC 2.4.11 requires visible focus. Common failure: CSS sets outline:none globally. SUCCESS: Clear focus indicator on every element when tabbed to. FAIL: Focus invisible or removed on any element.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "browser.focusVisible"
     },
     {
      "id": "accessibility-compliance-performance--heading-hierarchy",
@@ -869,7 +869,7 @@
      "title": "Flexbox container migration",
      "description": "Verify all sections use Flexbox containers (.e-con), not legacy sections or columns - legacy bloats DOM significantly.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.elementorContainers"
     },
     {
      "id": "elementor--dom-size-audit",
@@ -909,7 +909,7 @@
      "title": "Google Fonts disabled if unused",
      "description": "If using custom or system fonts, disable Google Fonts in Elementor to eliminate external font requests.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.elementorFonts"
     },
     {
      "id": "elementor--wp-memory-limit-256m-or-more",
@@ -933,7 +933,7 @@
      "title": "Pro license activated",
      "description": "Verify Elementor Pro license is active and valid for this specific domain.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.elementorLicense"
     },
     {
      "id": "elementor--global-colors-and-fonts-used",
@@ -973,7 +973,7 @@
      "title": "No animation CLS",
      "description": "Entrance animations must not cause Cumulative Layout Shift - run PageSpeed and check CLS score.",
      "owner": "Devs",
-     "check": null
+     "check": "lighthouse.home"
     }
    ]
   },
@@ -988,7 +988,7 @@
      "title": "File permissions on CSS dir",
      "description": "Verify /wp-content/uploads/yootheme/ is writable (755 dir, 644 files) - wrong permissions means no CSS generated.",
      "owner": "Devs",
-     "check": null
+     "check": "wp.yooPerms"
     },
     {
      "id": "yootheme--custom-css-loads-no-403",
@@ -996,7 +996,7 @@
      "title": "Custom CSS loads no 403",
      "description": "Confirm the generated YOOtheme CSS file loads with 200 OK - check DevTools > Network and filter by .css.",
      "owner": "Devs",
-     "check": null
+     "check": "crawl.yooAssets"
     },
     {
      "id": "yootheme--plugin-conflict-check",
@@ -1004,7 +1004,7 @@
      "title": "Plugin conflict check",
      "description": "Test for JS errors caused by plugin conflicts. YOOtheme relies on UIkit JS and conflicts silently break animations and modals.",
      "owner": "Devs",
-     "check": null
+     "check": "browser.consoleErrors"
     },
     {
      "id": "yootheme--uikit-components-functional",
@@ -1028,7 +1028,7 @@
      "title": "UIkit icon font loads",
      "description": "Icons render correctly with no blank squares. Font file must load from the theme assets folder.",
      "owner": "Devs",
-     "check": null
+     "check": "crawl.yooAssets"
     },
     {
      "id": "yootheme--yootheme-pro-license-active",
