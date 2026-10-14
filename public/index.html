@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WPE QA Checklist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -20,7 +22,7 @@
 <main id="app">
   <section id="empty" class="empty" hidden>
     <h1>Add your first site</h1>
-    <p>Enter the URL you want to audit: the staging address before launch, the real domain after. The app finds the WP Engine install behind it, reads WordPress over SSH with your key, and checks the pages in Chrome.</p>
+    <p>Enter the address to audit: staging before launch, the real domain after. The WP Engine install is found automatically.</p>
     <button class="btn primary" id="addFirst" type="button">Add site</button>
   </section>
 
@@ -36,13 +38,13 @@
 
     <div class="toolbar">
       <button class="btn primary run" id="runTool" type="button">Run Tool</button>
-      <button class="btn fixbtn" id="applyFixes" type="button" hidden>Apply approved fixes</button>
+      <button class="btn fixbtn" id="applyFixes" type="button" hidden>Apply fixes</button>
       <div class="lastrun" id="lastRun"></div>
       <div class="spacer"></div>
       <div class="filters" role="group" aria-label="Show">
         <button type="button" data-filter="all" aria-pressed="true">All</button>
         <button type="button" data-filter="attention" aria-pressed="false">Needs attention</button>
-        <button type="button" data-filter="manual" aria-pressed="false">Manual items</button>
+        <button type="button" data-filter="manual" aria-pressed="false">Manual</button>
       </div>
       <a class="btn ghost" id="reportLink" target="_blank" rel="noopener">Report</a>
     </div>
@@ -53,7 +55,7 @@
     </div>
 
     <div class="counts" id="counts"></div>
-    <details class="history" id="fixHistory" hidden><summary>Fix history and backups</summary><div id="fixRuns"></div></details>
+    <details class="history" id="fixHistory" hidden><summary>Fix history & backups</summary><div id="fixRuns"></div></details>
     <div id="sections"></div>
   </section>
 </main>

@@ -2,6 +2,7 @@
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch'];
 const STATUS = [['pass', 'Pass'], ['fail', 'Fail'], ['warn', 'Look'], ['na', 'N/A'], ['todo', 'To do']];
 const LABEL = { pass: 'Passed', fail: 'Failed', warn: 'Needs a look', na: 'N/A', todo: 'To do' };
+const TILE = { pass: 'passed', fail: 'failed', warn: 'to look at', na: 'n/a', todo: 'to do' };
 
 const $ = id => document.getElementById(id);
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (v == null || v === false) continue; if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? '' : v); } for (const c of kids.flat()) if (c != null) e.append(c); return e; };
@@ -56,17 +57,17 @@ function render() {
   }));
   const tpl = templates[tab]; const ts = tabState(tab);
   const last = ts.runs?.[0];
-  $('lastRun').textContent = last ? `Last run ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
+  $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
   $('reportLink').href = `/api/sites/${current.id}/report/${tab}`;
   $('runTool').textContent = `Run Tool`;
   const pend = pendingFixes(tab).length;
-  $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Apply approved fixes (${pend})`;
+  $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Apply fixes (${pend})`;
   renderHistory();
   $('runTool').title = `Run the automatic ${tpl.title} checks on ${current.name}`;
 
   const items = tpl.sections.flatMap(s => s.items);
   const counts = Object.fromEntries(Object.keys(LABEL).map(k => [k, items.filter(i => statusOf(tab, i) === k).length]));
-  $('counts').replaceChildren(...Object.entries(LABEL).map(([k, v]) => el('span', { class: `count c-${k}`, text: `${counts[k]} ${v.toLowerCase()}` })), el('span', { class: 'count c-todo', text: `${items.filter(i => i.check).length} of ${items.length} automatic` }));
+  $('counts').replaceChildren(...Object.keys(TILE).map(k => el('div', { class: `count c-${k}` }, el('b', { text: String(counts[k]) }), el('span', { text: TILE[k] }))), el('div', { class: 'count c-auto' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
 
   $('sections').replaceChildren(...tpl.sections.map(sec => {
     const rows = sec.items.map(it => itemRow(it));
@@ -80,23 +81,23 @@ function itemRow(it) {
   const save = patch => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: patch }).then(v => { (data.state.tabs[tab] ||= { items: {}, runs: [] }).items[it.id] = v; render(); }).catch(e => alert(e.message));
   const seg = el('div', { class: 'seg', role: 'group', 'aria-label': `Status of ${it.title}` }, STATUS.map(([k, label]) => el('button', { type: 'button', 'data-s': k, 'aria-pressed': String(status === k), title: LABEL[k], text: label, onclick: () => save({ status: k }) })));
   const src = s.source === 'manual'
-    ? el('span', { class: 'src' }, `set by you ${s.at ? ago(s.at) : ''}`, s.tool ? [' · ', el('button', { type: 'button', text: 'use tool result', onclick: () => save({ status: 'tool' }) })] : null)
-    : s.tool ? el('span', { class: 'src', text: `by tool ${ago(s.tool.at)}` }) : el('span', { class: 'src', text: it.check ? 'automatic, not run yet' : 'manual check' });
+    ? el('span', { class: 'src' }, `you · ${s.at ? ago(s.at) : ''}`, s.tool ? [' · ', el('button', { type: 'button', text: 'use tool result', onclick: () => save({ status: 'tool' }) })] : null)
+    : s.tool ? el('span', { class: 'src', text: ago(s.tool.at) }) : el('span', { class: 'src', text: it.check ? 'not run yet' : 'manual' });
   const details = s.tool?.details?.length ? el('details', {}, el('summary', { text: `${s.tool.details.length} detail${s.tool.details.length === 1 ? '' : 's'}` }), el('ul', {}, s.tool.details.map(d => el('li', {}, linkify(String(d)))))) : null;
-  let t; const note = el('input', { type: 'text', value: s.note || '', placeholder: 'Note', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
-  const fix = ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' }, el('span', { text: 'Fix:' }),
+  let t; const note = el('input', { type: 'text', value: s.note || '', placeholder: 'Add a note…', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
+  const fix = ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) })) : null;
   return el('article', { class: 'item', 'data-status': status, 'data-auto': it.check ? '1' : '0' },
     el('div', { class: 'item-main' },
       el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
-      el('p', { class: 'item-desc', text: it.description }),
+      el('p', { class: 'item-desc', title: it.description, text: it.description }),
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
       details,
       s.tool?.shots?.length && ['fail', 'warn'].includes(s.tool.status) ? el('div', { class: 'shots' }, s.tool.shots.map((sh, i) => el('a', { class: 'shot', href: sh.file, title: `${sh.page} · ${sh.label} (click to enlarge)`, onclick: e => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); openShots(s.tool.shots, i); } },
         el('img', { src: sh.file, alt: `${sh.label} on ${sh.page}`, loading: 'lazy', 'data-kind': sh.kind || 'crop' }),
         el('span', { text: `${sh.page} · ${sh.label}${sh.found ? '' : ' (not pinpointed; page view)'}` })))) : null,
-      s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'Suggested fix: ' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
+      s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'How to fix' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
     el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: fixLabel(s.fix) }) : null),
     el('div', { class: 'item-extra' }, note, fix));
 }
