@@ -1,8 +1,8 @@
 // WPE QA Checklist front end (no build step).
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch', 'urls'];
 const URLST = { none: 'No redirect needed', redirect: 'Redirect', attention: 'Needs attention' };
-const eff = r => ({ status: r.status || r.auto?.status || 'attention', target: r.target ?? r.auto?.target ?? '' });
-const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status === 'redirect' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target));
+const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '' }; };
+const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status !== 'none' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target));
 const STATUS = [['pass', 'Pass'], ['fail', 'Fail'], ['warn', 'Look'], ['na', 'N/A'], ['todo', 'To do']];
 const LABEL = { pass: 'Passed', fail: 'Failed', warn: 'Needs a look', na: 'N/A', todo: 'To do' };
 const TILE = { pass: 'passed', fail: 'failed', warn: 'to look at', na: 'n/a', todo: 'to do' };
@@ -271,17 +271,18 @@ function renderUrls() {
     return;
   }
   const origin = new URL(current.url).origin;
-  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); for (const k of ['status', 'target']) if (!(k in v)) delete r[k]; render(); }).catch(e => alert(e.message));
+  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); if (!('target' in v)) delete r.target; render(); }).catch(e => alert(e.message));
   const result = r => { const a = r.applied; if (!a) return null; const t = { verified: ['ok', 'Added · verified'], applied: ['warn', 'Added · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not added'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const list = el('datalist', { id: 'newPages' }, (u.newPages || []).map(p => el('option', { value: p.path, label: p.title || p.path })));
   const body = rows.map(r => {
     const e = eff(r);
-    const status = el('select', { class: `ustatus us-${e.status}`, 'aria-label': `Status of ${r.oldPath}`, onchange: ev => save(r, { status: ev.target.value }) }, Object.entries(URLST).map(([k, v]) => { const o = el('option', { value: k, text: v }); if (k === e.status) o.selected = true; return o; }));
-    const target = e.status === 'none'
+    const status = el('span', { class: `ustatus us-${e.status}`, text: URLST[e.status] });
+    // Only rows that need attention take a new URL from a person; the scan set the others.
+    const target = e.status !== 'attention'
       ? (e.target ? el('a', { class: 'utarget', href: origin + e.target, target: '_blank', rel: 'noopener' }, pathText(e.target)) : el('span', { class: 'muted', text: '—' }))
-      : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: '/new-page/', 'aria-label': `New URL for ${r.oldPath}`, onchange: ev => save(r, { target: ev.target.value }) });
+      : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: 'Pick or type the new URL', 'aria-label': `New URL for ${r.oldPath}`, onchange: ev => save(r, { target: ev.target.value }) });
     const decide = e.status === 'none' ? null : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
-      el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.status === 'redirect' && e.target ? null : true, title: e.status === 'redirect' && e.target ? '' : 'Set the status to Redirect and a new URL first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
+      el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target ? null : true, title: e.target ? '' : 'Pick the new URL first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
     return el('tr', { class: 'urow', 'data-status': e.status },
       el('td', { class: 'upage' }, el('b', { text: r.page }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
@@ -293,7 +294,9 @@ function renderUrls() {
     el('h2', {}, 'Old site', el('small', { text: `${current.referenceUrl.replace(/^https?:\/\//, '')} → ${origin.replace(/^https?:\/\//, '')} · redirects go into the Redirection plugin` })),
     el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
       el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New URL', ''].map(h => el('th', { text: h })))),
-      el('tbody', {}, body))), list));
+      el('tbody', {}, body))), list,
+    (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to redirect` }),
+      el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null));
   applyFilter();
 }
 

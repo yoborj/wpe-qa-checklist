@@ -46,9 +46,11 @@ sitemap, or by following its links) and opens each old address on the new site:
 |---|---|
 | **No redirect needed** | The same address works on the new site, or already lands on the right page |
 | **Redirect** | The old address is a 404 on the new site; the matching new page was found by its slug or title (e.g. `/car-accident-chiropractor` → `/services/car-accident-chiropractor/`, `/new-page-1` → `/conditions/mid-back-pain/`) |
-| **Needs attention** | No confident match: pick or type the new URL (the box suggests the new site's pages) |
+| **Needs attention** | A person should decide: no match, two new pages match equally, several old pages would land on the same new page, or WordPress guessed a different page (e.g. `/test/` → `/testimonials/`). Pick or type the new URL (the box suggests the new site's pages) |
 
-Change any row's status or new URL, then **Approve** the redirects you want. **Add redirects (N)** opens
+The scan sets every status; you can't change it. Rows that need attention take a new URL from you; then
+**Approve** the redirects you want. Pages that exist only on the new site are listed under
+**New on the new site** for review (nothing to redirect). **Add redirects (N)** opens
 a confirmation listing each one; after you confirm, the app backs up the site, installs and activates
 the [Redirection](https://wordpress.org/plugins/redirection/) plugin if it isn't there, adds every
 approved row as a 301 through the plugin's own API (into its "Redirections" group; addresses that

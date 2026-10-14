@@ -28,7 +28,7 @@ const HELP = `WPE QA Checklist — command line
   urls <site> run                        Old → New URLs: test every old-site page on the new site (read-only)
   urls <site> [status]                   The URL list: status, proposed new URL, decision (ids in brackets)
   urls <site> approve <id…|--all-redirects>   /  urls <site> decline <id…>
-  urls <site> set <id> <status|/new-path>     Change a row's status (none, redirect, attention) or its new URL
+  urls <site> set <id> </new-path>      Set the new URL of a row that needs attention (the scan sets status)
   urls <site> plan                       The redirects "Apply" would add to the Redirection plugin
   urls <site> apply --yes                Backup, install/set up Redirection if needed, add the approved 301s, verify
   rules <site>                           The production rules for fixing this site by hand
@@ -145,7 +145,7 @@ try {
         ids.forEach(id => setUrlRow(s.id, id, { decision: sub === 'approve' ? 'approve' : 'decline' }));
         out(`${sub === 'approve' ? 'Approved' : 'Declined'} ${ids.length} row${ids.length === 1 ? '' : 's'}.`, { ids }); break;
       }
-      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> <none|redirect|attention|/new-path>'); out(line(setUrlRow(s.id, id, URL_STATUSES[v] ? { status: v } : { target: v }))); break; }
+      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> </new-path>'); out(line(setUrlRow(s.id, id, { target: v }))); break; }
       if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(`  301  ${t.from} → ${t.to}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
       if (sub === 'apply') { if (flags.yes !== true) die('This adds redirects on the site. Show the plan (`urls <site> plan`), get the site owner\'s OK, then re-run with --yes.'); const r = await fixJob({ site: s, tab: URLS_TAB }); out(`\nRedirects: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}`, r); break; }
       die('Usage: urls <site> [run|status|approve|decline|set|plan|apply --yes]');
