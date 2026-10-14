@@ -9,6 +9,7 @@ A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, 
 | **WP Site Audit** | The `wp-site-audit` skill's checks: collapsed and empty links, asset URLs used as links, duplicate images, junk posts and slug collisions, exposed emails, mu-plugins, long H1s, alt text, phone formats, CPT featured images, Yoast title suffix, placeholder leaks, page-local styles. |
 | **QA — Before Launch** | The Audit Sheet's "QA — Before Launch" tab. 45 of 132 items are checked automatically (WordPress settings, plugins, updates, login URL, 404, alt text, tap-to-call phones, headings, tap targets, consent, security headers, schema, Lighthouse…). The rest are manual. |
 | **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 24 of 48 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
+| **Old → New URLs** | Tests every page of the old site on the new site and proposes the redirects; approved ones are added to the Redirection plugin for you (see below). |
 
 Every failed or flagged item also shows a **Suggested fix** (plain WordPress steps; tagged **App can
 fix** when the app has an automatic fix for it) and, where the problem is on the page, **screenshots**:
@@ -34,6 +35,27 @@ Elementor and YOOtheme sections are kept but marked N/A automatically unless the
 ![QA Swarm results for every page in the sitemap](docs/qa-swarm.png)
 
 Screenshots use a made-up demo site (example.com).
+
+## Old → New URLs
+
+For a redesign or a move to a new site. Set the **Old site URL** in Site settings, open the
+**Old → New URLs** tab and press **Run Tool** (read-only). It lists every page of the old site (from its
+sitemap, or by following its links) and opens each old address on the new site:
+
+| Status | Meaning |
+|---|---|
+| **No redirect needed** | The same address works on the new site, or already lands on the right page |
+| **Redirect** | The old address is a 404 on the new site; the matching new page was found by its slug or title (e.g. `/car-accident-chiropractor` → `/services/car-accident-chiropractor/`, `/new-page-1` → `/conditions/mid-back-pain/`) |
+| **Needs attention** | No confident match: pick or type the new URL (the box suggests the new site's pages) |
+
+Change any row's status or new URL, then **Approve** the redirects you want. **Add redirects (N)** opens
+a confirmation listing each one; after you confirm, the app backs up the site, installs and activates
+the [Redirection](https://wordpress.org/plugins/redirection/) plugin if it isn't there, adds every
+approved row as a 301 through the plugin's own API (into its "Redirections" group; addresses that
+already have a redirect are left alone), clears caches and opens each old address to check it now
+redirects. Nobody types redirects into the plugin by hand.
+
+From the command line: `node bin/wpeqa.mjs urls <site> run | approve <ids> | plan | apply --yes`.
 
 ## Fixing approved items
 

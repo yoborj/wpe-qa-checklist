@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem } from '../lib/store.mjs';
+import { URLS_TAB, URL_STATUSES, effective, setUrlRow, planRedirects } from '../lib/redirects.mjs';
 import { checkJob, fixJob } from '../lib/jobs.mjs';
 import { planFixes } from '../lib/fixers.mjs';
 import { report } from '../lib/report.mjs';
@@ -24,6 +25,12 @@ const HELP = `WPE QA Checklist — command line
   fix <site> <tab> --yes [--claude]      Apply approved fixes: backup first, automatic fixes, verify.
                                          --claude also hands the rest to a headless Claude Code run.
                                          --yes is the confirmation; only pass it after the site owner approved the plan.
+  urls <site> run                        Old → New URLs: test every old-site page on the new site (read-only)
+  urls <site> [status]                   The URL list: status, proposed new URL, decision (ids in brackets)
+  urls <site> approve <id…|--all-redirects>   /  urls <site> decline <id…>
+  urls <site> set <id> <status|/new-path>     Change a row's status (none, redirect, attention) or its new URL
+  urls <site> plan                       The redirects "Apply" would add to the Redirection plugin
+  urls <site> apply --yes                Backup, install/set up Redirection if needed, add the approved 301s, verify
   rules <site>                           The production rules for fixing this site by hand
   serve                                  Start the web app at http://localhost:4646
 
@@ -40,9 +47,10 @@ const json = !!flags.json;
 const out = (human, data) => console.log(json ? JSON.stringify(data ?? human, null, 1) : human);
 const die = msg => { console.error(msg); process.exit(1); };
 
+const findSite = ref => getSite(ref) || listSites().find(x => { try { return new URL(/^https?:/.test(ref) ? ref : 'https://' + ref).hostname.replace(/^www\./, '') === new URL(x.url).hostname.replace(/^www\./, ''); } catch { return false; } });
 function site(ref) {
   if (!ref) die('Which site? Pass its id or URL (see `sites`).');
-  const s = getSite(ref) || listSites().find(x => { try { return new URL(/^https?:/.test(ref) ? ref : 'https://' + ref).hostname.replace(/^www\./, '') === new URL(x.url).hostname.replace(/^www\./, ''); } catch { return false; } });
+  const s = findSite(ref);
   return s || die(`No saved site matches "${ref}". Add it first: node bin/wpeqa.mjs add <url>`);
 }
 const tabArg = (t, allowAll) => (allowAll && (!t || t === 'all')) ? TABS : TABS.includes(t) ? [t] : die(`Tab must be one of: ${TABS.join(', ')}${allowAll ? ', all' : ''}.`);
@@ -73,7 +81,7 @@ try {
     }
     case 'add': {
       if (!rest[0]) die('Usage: add <url> [--name N] [--install I] …');
-      const s = await saveSite({ url: rest[0], name: flags.name, install: flags.install, adminEmail: flags['admin-email'], referenceUrl: flags.reference, maxPages: flags['max-pages'], id: getSite(rest[0])?.id });
+      const s = await saveSite({ url: rest[0], name: flags.name, install: flags.install, adminEmail: flags['admin-email'], referenceUrl: flags.reference, maxPages: flags['max-pages'], id: findSite(rest[0])?.id });
       out(`Saved ${s.name} as "${s.id}": ${s.url}${s.install ? `, WP Engine install ${s.install} (${s.installHow})` : '. No WP Engine install found: WordPress checks and fixes need one (add --install <name>).'}`, s);
       break;
     }
@@ -124,6 +132,23 @@ try {
       const r = await fixJob({ site: s, tab, claude: !!flags.claude });
       out(`\nFix run ${r.meta.id}: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}${r.meta.backup ? `\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}` : ''}${r.request ? `\nFix request (items still to do): data/runs/${s.id}/${r.meta.id}/fix-request.md` : ''}`, r);
       break;
+    }
+    case 'urls': {
+      const s = site(rest[0]); const sub = rest[1] || 'status';
+      const rows = () => getState(s.id).urls?.rows || [];
+      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(18)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
+      if (sub === 'run') { await checkJob({ site: s, tab: URLS_TAB, log: undefined }); if (!json) rows().forEach(r => console.log(line(r))); else out(null, rows()); break; }
+      if (sub === 'status') { if (json) out(null, rows()); else { if (!rows().length) die('Not run yet: urls <site> run'); rows().forEach(r => console.log(line(r))); } break; }
+      if (sub === 'approve' || sub === 'decline') {
+        let ids = rest.slice(2); if (flags['all-redirects']) ids = rows().filter(r => effective(r).status === 'redirect').map(r => r.id);
+        if (!ids.length) die('Which rows? Pass ids (see `urls <site>`) or --all-redirects.');
+        ids.forEach(id => setUrlRow(s.id, id, { decision: sub === 'approve' ? 'approve' : 'decline' }));
+        out(`${sub === 'approve' ? 'Approved' : 'Declined'} ${ids.length} row${ids.length === 1 ? '' : 's'}.`, { ids }); break;
+      }
+      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> <none|redirect|attention|/new-path>'); out(line(setUrlRow(s.id, id, URL_STATUSES[v] ? { status: v } : { target: v }))); break; }
+      if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(`  301  ${t.from} → ${t.to}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
+      if (sub === 'apply') { if (flags.yes !== true) die('This adds redirects on the site. Show the plan (`urls <site> plan`), get the site owner\'s OK, then re-run with --yes.'); const r = await fixJob({ site: s, tab: URLS_TAB }); out(`\nRedirects: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}`, r); break; }
+      die('Usage: urls <site> [run|status|approve|decline|set|plan|apply --yes]');
     }
     case 'rules': { const s = site(rest[0]); if (!s.install) die('This site has no WP Engine install.'); console.log(RULES(s)); break; }
     case 'serve': { spawn(process.execPath, [path.join(ROOT, 'server.mjs')], { stdio: 'inherit' }); break; }

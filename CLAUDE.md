@@ -48,10 +48,21 @@ The same data is shown in the web app (`npm start` → http://localhost:4646).
    a backup. Then `run <site> <tab>` again to verify, and report item by item. (If the person prefers
    to hand them off, `fix … --yes --claude` runs a separate headless Claude Code session instead.)
 
+## Old → New URLs (redirects for a redesign or migration)
+
+1. The site needs its old address: `node bin/wpeqa.mjs add <url> --reference <old-site-url>`.
+2. `node bin/wpeqa.mjs urls <site> run` (read-only) tests every old-site page on the new site and proposes
+   a redirect for each old address that no longer works. `urls <site>` lists the rows with their ids.
+3. Show the person the Redirect and Needs attention rows. Change a row with `urls <site> set <id> <status|/path>`,
+   record their choices with `urls <site> approve <ids>` (or `--all-redirects` if they say so).
+4. `urls <site> plan`, then **ask for an explicit yes**. Only then `urls <site> apply --yes`: it backs up,
+   installs/activates the Redirection plugin if needed, adds each approved 301 through the plugin, and
+   checks each old address now redirects. Report what was verified and the backup path.
+
 ## Rules that always apply
 
 - These are **production** sites. Read-only commands (`sites`, `add`, `run`, `status`, `report`,
-  `plan`, `rules`, `approve`, `decline`, `note`) are fine to run. **Never pass `--yes` to `fix`, and
+  `plan`, `rules`, `approve`, `decline`, `note`, and `urls` without `apply`) are fine to run. **Never pass `--yes` to `fix` or `urls … apply`, and
   never change a site by hand, without the person's explicit approval in this conversation** for
   those specific changes on that URL.
 - Never overwrite someone else's edits: compare the server file's md5 with your copy before uploading.

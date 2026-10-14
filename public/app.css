@@ -231,3 +231,33 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
   select { min-width: 0; flex: 1; } .sitebar h1 { font-size: 1.75rem; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
+
+/* Old → New URLs */
+.urls-empty { display: grid; gap: 10px; justify-items: start; padding: 28px 30px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.urls-empty h2 { margin: 0; color: var(--ink); font-size: 1.35rem; }
+.urls-empty p { margin: 0; color: var(--faint); }
+.utable-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.utable { width: 100%; border-collapse: collapse; font-size: 15.5px; }
+.utable th { position: sticky; top: 0; text-align: left; padding: 14px 18px; font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.utable td { padding: 14px 18px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.utable tr:last-child td { border-bottom: 0; }
+.urow { transition: background-color .15s; }
+.urow:hover { background: var(--surface-2); }
+.urow td:first-child { border-left: 4px solid transparent; }
+.urow[data-status="none"] td:first-child { border-left-color: var(--pass); }
+.urow[data-status="redirect"] td:first-child { border-left-color: var(--warn); }
+.urow[data-status="attention"] td:first-child { border-left-color: var(--fail); }
+.upage { min-width: 200px; max-width: 280px; }
+.upage b { display: block; color: var(--ink); font-weight: 700; }
+.upage small { display: block; color: var(--faint); font-size: 13px; line-height: 1.4; margin-top: 2px; }
+.uold, .utarget { font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+.utarget { color: var(--body); }
+.ustatus { min-width: 0; padding: 6px 10px; border-radius: 999px; font-weight: 700; font-size: 14px; border: 1px solid transparent; cursor: pointer; }
+.us-none { background: var(--pass-soft); color: var(--pass); }
+.us-redirect { background: var(--warn-soft); color: var(--warn); }
+.us-attention { background: var(--fail-soft); color: var(--fail); }
+.uinput { width: 100%; min-width: 220px; font-family: var(--mono); font-size: 14px; padding: 8px 11px; background: var(--surface-2); }
+.udecide { white-space: nowrap; }
+.udecide .fix button:disabled { opacity: .45; cursor: not-allowed; }
+.ures { display: inline-block; margin-left: 8px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.ures.ok { background: var(--pass-soft); color: var(--pass); } .ures.warn { background: var(--warn-soft); color: var(--warn); } .ures.bad { background: var(--fail-soft); color: var(--fail); }

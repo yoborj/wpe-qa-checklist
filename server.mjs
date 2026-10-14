@@ -10,6 +10,8 @@ import { claudeStatus } from './lib/claude.mjs';
 import { agency } from './lib/config.mjs';
 import { planFixes } from './lib/fixers.mjs';
 import { report } from './lib/report.mjs';
+import { URLS_TAB, setUrlRow, planRedirects, effective } from './lib/redirects.mjs';
+const JOB_TABS = [...TABS, URLS_TAB];
 
 const PORT = +process.env.PORT || 4646;
 const PUBLIC = path.join(ROOT, 'public');
@@ -68,7 +70,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'DELETE' && p[1] === 'sites' && !p[3]) { deleteSite(site.id); return send(res, 200, { ok: true }); }
     if (req.method === 'PUT' && p[3] === 'items' && TABS.includes(p[4]) && p[5]) return send(res, 200, setItem(site.id, p[4], p[5], await body(req)).tabs[p[4]].items[p[5]]);
-    if (req.method === 'POST' && p[3] === 'run' && TABS.includes(p[4])) { const r = startJob(site, p[4], 'check'); return send(res, 200, { runId: r.id }); }
+    if (req.method === 'POST' && p[3] === 'run' && JOB_TABS.includes(p[4])) { const r = startJob(site, p[4], 'check'); return send(res, 200, { runId: r.id }); }
+    if (req.method === 'PUT' && p[3] === 'urls' && p[4]) return send(res, 200, setUrlRow(site.id, p[4], await body(req)));
+    if (req.method === 'GET' && p[3] === 'fix' && p[4] === URLS_TAB && p[5] === 'plan') { const pl = planRedirects(site.id); return send(res, 200, { install: site.install, url: site.url, todo: pl.todo, skipped: pl.skipped.map(r => ({ page: r.page, from: r.oldPath, why: r.why })) }); }
+    if (req.method === 'POST' && p[3] === 'fix' && p[4] === URLS_TAB) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the redirects first.' }); const r = startJob(site, URLS_TAB, 'fix'); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'fix' && TABS.includes(p[4]) && p[5] === 'plan') {
       const plan = planFixes(templates()[p[4]], getState(site.id).tabs[p[4]] || { items: {} }, site);
       const strip = x => ({ id: x.id, title: x.title, action: x.action, reason: x.reason, note: x.item.note || '' });
