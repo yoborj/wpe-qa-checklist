@@ -28,7 +28,7 @@ Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 Elementor and YOOtheme sections are kept but marked N/A automatically unless the site uses them.
 
 
-![QA — Before Launch, showing items that need attention with screenshots, a suggested fix, and Approve / Decline](docs/qa-before-launch.png)
+![QA — Before Launch: count tiles, the section switcher, and an automatic item with its screenshot, How to fix, and Approve / Decline](docs/qa-before-launch.png)
 
 ![One item up close: the phone number framed in red on the page, and the suggested fix](docs/qa-item-detail.png)
 
@@ -60,6 +60,8 @@ already have a redirect are left alone), clears caches and opens each old addres
 redirects. Nobody types redirects into the plugin by hand.
 
 From the command line: `node bin/wpeqa.mjs urls <site> run | approve <ids> | plan | apply --yes`.
+
+![Old → New URLs: each old page with the scan's status, the new URL, and Approve / Decline](docs/qa-old-new-urls.png)
 
 ## Fixing approved items
 
