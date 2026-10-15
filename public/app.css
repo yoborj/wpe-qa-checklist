@@ -293,3 +293,18 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .spill { display: inline-block; padding: 6px 15px; border-radius: 999px; font-weight: 800; font-size: 14.5px; white-space: nowrap; background: var(--na-soft); color: var(--todo); }
 .sp-pass { background: var(--pass-soft); color: var(--pass); } .sp-fail { background: var(--fail-soft); color: var(--fail); }
 .sp-warn { background: var(--warn-soft); color: var(--warn); } .sp-na { background: var(--na-soft); color: var(--na); }
+
+/* Old → New URLs: keep or new, and the live-site gate */
+.uchoice { display: inline-flex; margin-top: 10px; padding: 3px; gap: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; }
+.uchoice button { border: 0; background: none; color: var(--faint); padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.uchoice button:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
+.uchoice button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.uchoice button:disabled { opacity: .4; cursor: not-allowed; }
+.unokeep { display: block; margin-top: 6px; color: var(--faint); font-size: 14px; }
+.prodchecks { list-style: none; padding: 0 !important; display: grid; gap: 10px; }
+.prodchecks li { position: relative; padding-left: 30px; font-size: 15.5px; }
+.prodchecks li::before { position: absolute; left: 0; top: 0; width: 22px; text-align: center; font-weight: 800; }
+.pc-ok::before { content: "✓"; color: var(--pass); } .pc-bad::before { content: "✕"; color: var(--fail); } .pc-warn::before { content: "!"; color: var(--warn); } .pc-wait::before { content: "…"; color: var(--faint); }
+.pc-bad { color: var(--ink); }
+#prodDialog { width: min(620px, calc(100vw - 32px)); }
+.tabs .badge.lock { background: var(--na-soft); color: var(--faint); font-size: 11px; }

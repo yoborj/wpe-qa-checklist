@@ -30,7 +30,7 @@
     <div class="sitebar">
       <div>
         <h1 id="siteName"></h1>
-        <p class="meta"><a id="siteHome" target="_blank" rel="noopener"></a> · <span id="siteInstall"></span></p>
+        <p class="meta"><a id="siteHome" target="_blank" rel="noopener"></a><span id="siteProd" hidden> · <a target="_blank" rel="noopener"></a> (production)</span> · <span id="siteInstall"></span></p>
       </div>
     </div>
 
@@ -65,7 +65,8 @@
 <dialog id="siteDialog">
   <form method="dialog" id="siteForm">
     <h2 id="siteDialogTitle">Add site</h2>
-    <label>Site URL to audit<input id="fUrl" name="url" required placeholder="https://www.example.com or https://install.wpenginepowered.com" autocomplete="off" inputmode="url"></label>
+    <label>Staging site to audit <small>QA Swarm, WP Site Audit, Before Launch, Old → New URLs</small><input id="fUrl" name="url" required placeholder="https://install.wpenginepowered.com" autocomplete="off" inputmode="url"></label>
+    <label>Production site to audit <small>optional; the live domain, for QA — After Launch</small><input id="fProd" name="prodUrl" placeholder="https://www.example.com" autocomplete="off" inputmode="url"></label>
     <label>Display name <small>optional</small><input id="fName" name="name" placeholder="Example Clinic"></label>
     <label>WP Engine install <small>optional, detected from the URL</small><input id="fInstall" name="install" pattern="[a-z0-9]{3,30}" placeholder="detected automatically" autocomplete="off"></label>
     <label>Expected admin email<input id="fEmail" name="adminEmail" type="email" placeholder="developer@youragency.com"></label>
@@ -90,6 +91,22 @@
   <button type="button" class="lb-btn lb-prev" id="shotPrev" aria-label="Previous screenshot">‹</button>
   <button type="button" class="lb-btn lb-next" id="shotNext" aria-label="Next screenshot">›</button>
   <a id="shotOpen" class="lb-open" target="_blank" rel="noopener">Open full size in a new tab</a>
+</dialog>
+
+<dialog id="prodDialog" aria-labelledby="prodTitle">
+  <div class="fixdlg">
+    <h2 id="prodTitle">Is the new site live?</h2>
+    <p class="fixsite" id="prodSite"></p>
+    <p>QA — After Launch checks the production site. The app checked:</p>
+    <ul class="prodchecks" id="prodChecks"></ul>
+    <label class="confirm"><input type="checkbox" id="prodConfirm"> <span id="prodConfirmText"></span></label>
+    <p class="err" id="prodErr" hidden></p>
+    <div class="dlg-actions">
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" id="prodCancel">Cancel</button>
+      <button class="btn primary" type="button" id="prodGo" disabled>Confirm live site</button>
+    </div>
+  </div>
 </dialog>
 
 <dialog id="fixDialog" aria-labelledby="fixTitle">

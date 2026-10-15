@@ -25,7 +25,14 @@ get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the app
 first (see below). **Report** opens a
 Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
-Elementor and YOOtheme sections are kept but marked N/A automatically unless the site uses them.
+Elementor, YOOtheme and Tailwind sections are kept but marked N/A automatically unless the site uses them.
+
+**Staging and production.** Each site has a **Staging site to audit** (QA Swarm, WP Site Audit, Before Launch
+and Old → New URLs all run there) and a **Production site to audit** (the live domain). **QA — After Launch**
+checks production only, so it stays locked until someone confirms the new site is live there: the app checks
+the production address isn't a staging address, answers, and is served by the new WordPress (its home URL is
+that domain), then asks for the confirmation. Changing the production address locks it again.
+From the command line: `node bin/wpeqa.mjs confirm-live <site> --yes`.
 
 
 ![QA — Before Launch: count tiles, the section switcher, and an automatic item with its screenshot, How to fix, and Approve / Decline](docs/qa-before-launch.png)
@@ -40,26 +47,33 @@ Screenshots use a made-up demo site (example.com).
 
 ## Old → New URLs
 
-For a redesign or a move to a new site. Set the **Old site URL** in Site settings, open the
-**Old → New URLs** tab and press **Run Tool** (read-only). It lists every page of the old site (from its
-sitemap, or by following its links) and opens each old address on the new site:
+For a redesign or a move to a new site, the goal is to keep the old site's URLs. Set the **Old site URL**
+in Site settings, open the **Old → New URLs** tab and press **Run Tool** (read-only). It lists every page
+of the old site (from its sitemap, or by following its links) and opens each old URL on the new site:
 
 | Status | Meaning |
 |---|---|
-| **No redirect needed** | The same address works on the new site, or already lands on the right page |
-| **Redirect** | The old address is a 404 on the new site; the matching new page was found by its slug or title (e.g. `/car-accident-chiropractor` → `/services/car-accident-chiropractor/`, `/new-page-1` → `/conditions/mid-back-pain/`) |
-| **Needs attention** | A person should decide: no match, two new pages match equally, several old pages would land on the same new page, or WordPress guessed a different page (e.g. `/test/` → `/testimonials/`). Pick or type the new URL (the box suggests the new site's pages) |
+| **Same URL** | The old URL works on the new site as it is |
+| **URL changed** | The page moved (e.g. `/car-accident-chiropractor` → `/services/car-accident-chiropractor/`); the matching new page was found by its slug or title |
+| **Needs attention** | A person decides: no match, two new pages match equally, several old pages would land on the same new page, or WordPress guessed a different page (e.g. `/test/` → `/testimonials/`). Pick or type the new page (the box suggests the new site's pages) |
 
-The scan sets every status; you can't change it. Rows that need attention take a new URL from you; then
-**Approve** the redirects you want. Pages that exist only on the new site are listed under
-**New on the new site** for review (nothing to redirect). **Add redirects (N)** opens
-a confirmation listing each one; after you confirm, the app backs up the site, installs and activates
-the [Redirection](https://wordpress.org/plugins/redirection/) plugin if it isn't there, adds every
-approved row as a 301 through the plugin's own API (into its "Redirections" group; addresses that
-already have a redirect are left alone), clears caches and opens each old address to check it now
-redirects. Nobody types redirects into the plugin by hand.
+The scan sets every status. For each changed URL **you choose which URL to use**:
 
-From the command line: `node bin/wpeqa.mjs urls <site> run | approve <ids> | plan | apply --yes`.
+- **Keep old URL**: the app moves the new page back to the old address (its slug, and its parent page for
+  nested addresses) and adds a 301 from where it was, so links to the new URL keep working. Pre-selected
+  whenever WordPress can serve the old address; the scan checks that over SSH and explains when it can't
+  (a `.html` address or query string, no parent page at that path, another page already there, a post type
+  with a fixed prefix).
+- **Use new URL**: a 301 from the old URL to the new page.
+
+Then **Approve** the rows. **Apply URL decisions (N)** opens a confirmation listing each change; after you
+confirm, the app backs up the site, installs and activates the [Redirection](https://wordpress.org/plugins/redirection/)
+plugin if it isn't there, moves the kept pages, adds every 301 through the plugin's own API (addresses that
+already have a redirect are left alone), clears caches and opens each old URL to check it: kept ones must
+show their page, redirected ones must 301. Pages that exist only on the new site are listed under
+**New on the new site** for review.
+
+From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|new | approve <ids> | plan | apply --yes`.
 
 ![Old → New URLs: each old page with the scan's status, the new URL, and Approve / Decline](docs/qa-old-new-urls.png)
 
@@ -137,8 +151,8 @@ npm install
 npm start
 ```
 
-Open http://localhost:4646, click **Add site**, and enter the WP Engine install name (the part
-before `.wpenginepowered.com`). The app only listens on this Mac (127.0.0.1).
+Open http://localhost:4646, click **Add site**, and enter the staging URL (and the production URL once
+the site is live). The app only listens on this Mac (127.0.0.1).
 
 ## What Run Tool touches
 

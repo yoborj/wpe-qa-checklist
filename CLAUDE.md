@@ -48,17 +48,25 @@ The same data is shown in the web app (`npm start` → http://localhost:4646).
    a backup. Then `run <site> <tab>` again to verify, and report item by item. (If the person prefers
    to hand them off, `fix … --yes --claude` runs a separate headless Claude Code session instead.)
 
-## Old → New URLs (redirects for a redesign or migration)
+## QA — After Launch: production only
+
+Everything runs on the staging URL except QA — After Launch, which checks the production site. Add it with
+`node bin/wpeqa.mjs add <staging-url> --prod <live-url>`, run `confirm-live <site>` to see the checks, and only
+after the person confirms the new site is live there, `confirm-live <site> --yes`. `run <site> all` skips
+After Launch until then.
+
+## Old → New URLs (keep the old site's URLs)
 
 1. The site needs its old address: `node bin/wpeqa.mjs add <url> --reference <old-site-url>`.
 2. `node bin/wpeqa.mjs urls <site> run` (read-only) tests every old-site page on the new site and proposes
    a redirect for each old address that no longer works. `urls <site>` lists the rows with their ids.
-3. Show the person the Redirect and Needs attention rows. The scan sets each status; for a Needs attention row
-   set its new URL with `urls <site> set <id> </path>`. Then
-   record their choices with `urls <site> approve <ids>` (or `--all-redirects` if they say so).
+3. Show the person the URL changed and Needs attention rows. The scan sets each status; for a Needs attention
+   row set its new page with `urls <site> set <id> </path>`. For each changed URL the person chooses:
+   `urls <site> choose <id> keep` (move the page back to the old URL) or `new` (301 old → new). Then
+   record their approvals with `urls <site> approve <ids>`.
 4. `urls <site> plan`, then **ask for an explicit yes**. Only then `urls <site> apply --yes`: it backs up,
-   installs/activates the Redirection plugin if needed, adds each approved 301 through the plugin, and
-   checks each old address now redirects. Report what was verified and the backup path.
+   installs/activates the Redirection plugin if needed, moves kept pages back (with a 301 from where they
+   were), adds the other 301s, and checks every old URL. Report what was verified and the backup path.
 
 ## Rules that always apply
 

@@ -4,7 +4,8 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem } from '../lib/store.mjs';
-import { URLS_TAB, URL_STATUSES, effective, setUrlRow, planRedirects } from '../lib/redirects.mjs';
+import { URLS_TAB, URL_STATUSES, CHOICES, effective, setUrlRow, planRedirects } from '../lib/redirects.mjs';
+import { LIVE_TAB, liveChecks, confirmLive, liveConfirmed } from '../lib/live.mjs';
 import { checkJob, fixJob } from '../lib/jobs.mjs';
 import { planFixes } from '../lib/fixers.mjs';
 import { report } from '../lib/report.mjs';
@@ -13,7 +14,7 @@ import { claudeStatus, RULES } from '../lib/claude.mjs';
 const HELP = `WPE QA Checklist — command line
 
   sites                                  List saved sites
-  add <url> [--name N] [--install I] [--admin-email E] [--reference URL] [--max-pages N]
+  add <staging-url> [--prod LIVE-URL] [--name N] [--install I] [--admin-email E] [--reference OLD-URL] [--max-pages N]
                                          Add (or update) a site by the URL to audit; the WP Engine install is detected
   run <site> [tab|all]                   Run Tool for one tab or all four (read-only)
   status <site> [tab]                    Pass/fail counts and every failing or flagged item (with ids)
@@ -25,10 +26,12 @@ const HELP = `WPE QA Checklist — command line
   fix <site> <tab> --yes [--claude]      Apply approved fixes: backup first, automatic fixes, verify.
                                          --claude also hands the rest to a headless Claude Code run.
                                          --yes is the confirmation; only pass it after the site owner approved the plan.
+  confirm-live <site> [--yes]            QA — After Launch runs on the live site only: check it, then (--yes) confirm it
   urls <site> run                        Old → New URLs: test every old-site page on the new site (read-only)
   urls <site> [status]                   The URL list: status, proposed new URL, decision (ids in brackets)
   urls <site> approve <id…|--all-redirects>   /  urls <site> decline <id…>
-  urls <site> set <id> </new-path>      Set the new URL of a row that needs attention (the scan sets status)
+  urls <site> set <id> </new-path>      Set the new page of a row that needs attention (the scan sets status)
+  urls <site> choose <id> keep|new      Keep the old URL (move the page back) or use the new URL (301 from the old one)
   urls <site> plan                       The redirects "Apply" would add to the Redirection plugin
   urls <site> apply --yes                Backup, install/set up Redirection if needed, add the approved 301s, verify
   rules <site>                           The production rules for fixing this site by hand
@@ -81,17 +84,18 @@ try {
     }
     case 'add': {
       if (!rest[0]) die('Usage: add <url> [--name N] [--install I] …');
-      const s = await saveSite({ url: rest[0], name: flags.name, install: flags.install, adminEmail: flags['admin-email'], referenceUrl: flags.reference, maxPages: flags['max-pages'], id: findSite(rest[0])?.id });
+      const s = await saveSite({ url: rest[0], name: flags.name, install: flags.install, adminEmail: flags['admin-email'], referenceUrl: flags.reference, prodUrl: flags.prod, maxPages: flags['max-pages'], id: findSite(rest[0])?.id });
       out(`Saved ${s.name} as "${s.id}": ${s.url}${s.install ? `, WP Engine install ${s.install} (${s.installHow})` : '. No WP Engine install found: WordPress checks and fixes need one (add --install <name>).'}`, s);
       break;
     }
     case 'run': {
       const s = site(rest[0]);
       for (const tab of tabArg(rest[1], true)) {
+        if (tab === LIVE_TAB && !liveConfirmed(s)) { console.log(`\nSkipping QA — After Launch: it runs on the live site only. Confirm it first: node bin/wpeqa.mjs confirm-live ${s.id} --yes`); continue; }
         await checkJob({ site: s, tab, log: undefined });
         if (!json) printStatus(status(s, tab));
       }
-      if (json) out(null, tabArg(rest[1], true).map(t => status(s, t)));
+      if (json) out(null, tabArg(rest[1], true).filter(t => t !== LIVE_TAB || liveConfirmed(s)).map(t => status(s, t)));
       break;
     }
     case 'status': {
@@ -133,10 +137,17 @@ try {
       out(`\nFix run ${r.meta.id}: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}${r.meta.backup ? `\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}` : ''}${r.request ? `\nFix request (items still to do): data/runs/${s.id}/${r.meta.id}/fix-request.md` : ''}`, r);
       break;
     }
+    case 'confirm-live': {
+      const s = site(rest[0]); const lc = await liveChecks(s);
+      if (!json) { console.log(`Live-site checks for ${s.prodUrl || '(no production URL set)'}:`); lc.checks.forEach(c => console.log(`  ${c.ok ? '✓' : c.hard ? '✕' : '!'} ${c.text}`)); }
+      if (!lc.ready) die('\nNot confirmed: fix the ✕ items first (set the live domain: add <staging-url> --prod <live-url>).');
+      if (flags.yes !== true) { out('\nAll checks pass. Ask the site owner to confirm the new site is live on this address, then re-run with --yes.', lc); break; }
+      out(`\nConfirmed: ${s.prodUrl} is the live site. QA — After Launch is unlocked.`, await confirmLive(s)); break;
+    }
     case 'urls': {
       const s = site(rest[0]); const sub = rest[1] || 'status';
       const rows = () => getState(s.id).urls?.rows || [];
-      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(18)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
+      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${r.auto?.keep && !r.auto.keep.ok ? `; can't keep: ${r.auto.keep.why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
       if (sub === 'run') { await checkJob({ site: s, tab: URLS_TAB, log: undefined }); if (!json) rows().forEach(r => console.log(line(r))); else out(null, rows()); break; }
       if (sub === 'status') { if (json) out(null, rows()); else { if (!rows().length) die('Not run yet: urls <site> run'); rows().forEach(r => console.log(line(r))); } break; }
       if (sub === 'approve' || sub === 'decline') {
@@ -145,8 +156,9 @@ try {
         ids.forEach(id => setUrlRow(s.id, id, { decision: sub === 'approve' ? 'approve' : 'decline' }));
         out(`${sub === 'approve' ? 'Approved' : 'Declined'} ${ids.length} row${ids.length === 1 ? '' : 's'}.`, { ids }); break;
       }
+      if (sub === 'choose') { const [id, v] = rest.slice(2); if (!id || !CHOICES[v]) die('Usage: urls <site> choose <id> keep|new'); out(line(setUrlRow(s.id, id, { choice: v }))); break; }
       if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> </new-path>'); out(line(setUrlRow(s.id, id, { target: v }))); break; }
-      if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(`  301  ${t.from} → ${t.to}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
+      if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(t.choice === 'keep' ? `  KEEP ${t.from}  (move ${t.to} back to it; 301 ${t.to} → ${t.from})` : `  301  ${t.from} → ${t.to}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
       if (sub === 'apply') { if (flags.yes !== true) die('This adds redirects on the site. Show the plan (`urls <site> plan`), get the site owner\'s OK, then re-run with --yes.'); const r = await fixJob({ site: s, tab: URLS_TAB }); out(`\nRedirects: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}`, r); break; }
       die('Usage: urls <site> [run|status|approve|decline|set|plan|apply --yes]');
     }

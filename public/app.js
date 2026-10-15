@@ -1,8 +1,8 @@
 // WPE QA Checklist front end (no build step).
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch', 'urls'];
-const URLST = { none: 'No redirect needed', redirect: 'Redirect', attention: 'Needs attention' };
-const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '' }; };
-const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status !== 'none' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target));
+const URLST = { none: 'Same URL', redirect: 'URL changed', attention: 'Needs attention' };
+const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (r.auto?.keep?.ok ? 'keep' : 'new') }; };
+const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status !== 'none' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target && r.applied.choice === eff(r).choice));
 const STATUS = [['pass', 'Pass'], ['fail', 'Fail'], ['warn', 'Look'], ['na', 'N/A'], ['todo', 'To do']];
 const LABEL = { pass: 'Passed', fail: 'Failed', warn: 'Needs a look', na: 'N/A', todo: 'To do' };
 const TILE = { pass: 'passed', fail: 'failed', warn: 'to look at', na: 'n/a', todo: 'to do' };
@@ -40,7 +40,8 @@ async function openSite(id) {
   store.set('wpeqa.site', id);
   data = await api('/sites/' + id); current = data.site;
   $('siteName').textContent = current.name;
-  $('siteHome').href = current.url; $('siteHome').textContent = current.url.replace(/^https?:\/\//, '');
+  $('siteHome').href = current.url; $('siteHome').textContent = current.url.replace(/^https?:\/\//, '') + (current.prodUrl ? ' (staging)' : '');
+  $('siteProd').hidden = !current.prodUrl; if (current.prodUrl) { $('siteProd').querySelector('a').href = current.prodUrl; $('siteProd').querySelector('a').textContent = current.prodUrl.replace(/^https?:\/\//, ''); }
   $('siteInstall').replaceChildren(current.install
     ? el('span', { title: current.installHow || '' }, 'WP Engine install ', el('code', { text: current.install }), current.installHow ? ` (${current.installHow})` : '')
     : el('span', { class: 'warnline', text: 'No WP Engine install found, so WordPress checks are skipped. Add it in Site settings.' }));
@@ -59,16 +60,18 @@ function render() {
       const u = data.state.urls || {}; const open = (u.rows || []).filter(r => eff(r).status !== 'none' && !r.decision).length;
       return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, 'Old → New URLs', u.runs?.length ? el('span', { class: 'badge' + (open ? '' : ' ok'), text: open ? String(open) : '✓' }) : null);
     }
+    if (t === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return el('button', { role: 'tab', 'aria-selected': String(t === tab), title: 'Unlocks once the production site is confirmed live', onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, templates[t].title, el('span', { class: 'badge lock', text: '🔒' }));
     const tpl = templates[t]; const items = tpl.sections.flatMap(s => s.items);
     const bad = items.filter(i => ['fail', 'warn'].includes(statusOf(t, i))).length;
     const ran = tabState(t).runs?.length;
     return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
   }));
-  $('reportLink').hidden = tab === 'urls';
+  $('reportLink').hidden = tab === 'urls'; $('runTool').hidden = false; document.querySelector('.filters').hidden = false;
   document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Needs redirect' : 'Needs attention';
   document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'No redirect' : 'Manual';
   $('secNav').hidden = tab === 'urls';
   if (tab === 'urls') return renderUrls();
+  if (tab === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return renderLiveGate();
   const tpl = templates[tab]; const ts = tabState(tab);
   const last = ts.runs?.[0];
   $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
@@ -201,7 +204,7 @@ function openDialog(site) {
   $('siteDialogTitle').textContent = site ? 'Site settings' : 'Add site';
   $('fUrl').value = site?.url || ''; $('fInstall').value = site?.install || '';
   $('fName').value = site?.name || ''; $('fEmail').value = site?.adminEmail ?? config.adminEmail ?? '';
-  $('fRef').value = site?.referenceUrl || ''; $('fMax').value = site?.maxPages || 80;
+  $('fRef').value = site?.referenceUrl || ''; $('fMax').value = site?.maxPages || 80; $('fProd').value = site?.prodUrl || '';
   $('deleteSite').hidden = !site; $('siteErr').hidden = true;
   $('siteDialog').showModal();
 }
@@ -213,7 +216,7 @@ $('siteForm').addEventListener('submit', async e => {
   e.preventDefault();
   try {
     $('saveSite').disabled = true; $('saveSite').textContent = 'Finding the install…';
-    const s = await api('/sites', { method: 'POST', body: { id: editing?.id, url: $('fUrl').value.trim(), install: $('fInstall').value.trim().toLowerCase(), name: $('fName').value.trim(), adminEmail: $('fEmail').value.trim(), referenceUrl: $('fRef').value.trim(), maxPages: $('fMax').value } });
+    const s = await api('/sites', { method: 'POST', body: { id: editing?.id, url: $('fUrl').value.trim(), install: $('fInstall').value.trim().toLowerCase(), name: $('fName').value.trim(), adminEmail: $('fEmail').value.trim(), referenceUrl: $('fRef').value.trim(), prodUrl: $('fProd').value.trim(), maxPages: $('fMax').value } });
     $('siteDialog').close(); await loadSites(s.id);
   } catch (err) { $('siteErr').textContent = err.message; $('siteErr').hidden = false; }
   finally { $('saveSite').disabled = false; $('saveSite').textContent = 'Save'; }
@@ -287,67 +290,107 @@ function renderUrls() {
   $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
   $('runTool').title = `Test every page of the old site on ${current.name}`;
   const pend = urlsPending(rows).length;
-  $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Add redirects (${pend})`;
+  $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Apply URL decisions (${pend})`;
   $('fixHistory').hidden = true;
-  const c = { none: 0, redirect: 0, attention: 0 }; rows.forEach(r => c[eff(r).status]++);
-  const added = rows.filter(r => ['verified', 'applied', 'exists'].includes(r.applied?.state)).length;
-  const tile = (cls, n, label) => el('div', { class: `count ${cls}` }, el('b', { text: String(n) }), el('span', { text: label }));
-  $('counts').replaceChildren(...(rows.length ? [tile('c-pass', c.none, 'no redirect needed'), tile('c-warn', c.redirect, 'to redirect'), tile('c-fail', c.attention, 'need attention'), tile('c-auto', rows.filter(r => r.decision === 'approve').length, 'approved'), tile('c-na', added, 'added in Redirection')] : []));
   if (!current.referenceUrl) {
-    $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: "Add the old site's address" }), el('p', { text: 'Run Tool compares every page of the old site with this one and proposes the redirects.' }), el('button', { class: 'btn primary', type: 'button', text: 'Set the old site', onclick: () => $('editSite').click() })));
+    $('counts').replaceChildren();
+    $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: "Add the old site's address" }), el('p', { text: 'Run Tool checks every page of the old site on this one and proposes, for each moved page, keeping its old URL or redirecting to the new one.' }), el('button', { class: 'btn primary', type: 'button', text: 'Set the old site', onclick: () => $('editSite').click() })));
     return;
   }
+  const c = { none: 0, redirect: 0, attention: 0 }; rows.forEach(r => c[eff(r).status]++);
+  const done = rows.filter(r => ['verified', 'applied', 'exists'].includes(r.applied?.state)).length;
+  const tile = (cls, n, label) => el('div', { class: `count ${cls}` }, el('b', { text: String(n) }), el('span', { text: label }));
+  $('counts').replaceChildren(...(rows.length ? [tile('c-pass', c.none, 'same URL'), tile('c-warn', c.redirect, 'URL changed'), tile('c-fail', c.attention, 'need attention'), tile('c-auto', rows.filter(r => r.decision === 'approve').length, 'approved'), tile('c-na', done, 'done')] : []));
   if (!rows.length) {
-    $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and tests it on this site.')));
+    $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site.')));
     return;
   }
   const origin = new URL(current.url).origin;
-  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); if (!('target' in v)) delete r.target; render(); }).catch(e => alert(e.message));
-  const result = r => { const a = r.applied; if (!a) return null; const t = { verified: ['ok', 'Added · verified'], applied: ['warn', 'Added · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not added'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
+  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); if (!('target' in v)) delete r.target; if (!('choice' in v)) delete r.choice; render(); }).catch(e => alert(e.message));
+  const result = r => { const a = r.applied; if (!a) return null; const keep = a.choice === 'keep'; const t = { verified: ['ok', keep ? 'Old URL kept · verified' : 'Redirected · verified'], applied: ['warn', 'Done · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const list = el('datalist', { id: 'newPages' }, (u.newPages || []).map(p => el('option', { value: p.path, label: p.title || p.path })));
   const body = rows.map(r => {
     const e = eff(r);
     const status = el('span', { class: `ustatus us-${e.status}`, text: URLST[e.status] });
-    // Only rows that need attention take a new URL from a person; the scan set the others.
     const target = e.status !== 'attention'
       ? (e.target ? el('a', { class: 'utarget', href: origin + e.target, target: '_blank', rel: 'noopener' }, pathText(e.target)) : el('span', { class: 'muted', text: '—' }))
-      : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: 'Pick or type the new URL', 'aria-label': `New URL for ${r.oldPath}`, onchange: ev => save(r, { target: ev.target.value }) });
+      : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: 'Pick or type the new page', 'aria-label': `New page for ${r.oldPath}`, onchange: ev => save(r, { target: ev.target.value }) });
+    // The person's call for a changed URL: keep the old address (move the page back) or use the new one (301).
+    const k = r.auto?.keep; const canKeep = !k || k.ok;
+    const choice = e.status === 'none' || !e.target ? null : el('div', { class: 'uchoice', role: 'group', 'aria-label': 'Which URL to use' },
+      el('button', { type: 'button', 'aria-pressed': String(e.choice === 'keep'), disabled: canKeep ? null : true, title: canKeep ? `Move ${e.target} back to ${r.oldPath}` : `Can't keep: ${k.why}`, text: 'Keep old URL', onclick: () => save(r, { choice: 'keep' }) }),
+      el('button', { type: 'button', 'aria-pressed': String(e.choice === 'new'), title: `301 ${r.oldPath} → ${e.target}`, text: 'Use new URL', onclick: () => save(r, { choice: 'new' }) }));
+    const why = !canKeep && e.status !== 'none' ? el('small', { class: 'unokeep', text: `Can't keep the old URL: ${k.why}` }) : null;
     const decide = e.status === 'none' ? null : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
-      el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target ? null : true, title: e.target ? '' : 'Pick the new URL first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
+      el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target ? null : true, title: e.target ? '' : 'Pick the new page first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
     return el('tr', { class: 'urow', 'data-status': e.status },
       el('td', { class: 'upage' }, el('b', { text: r.page }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
       el('td', { class: 'ustat' }, status, el('small', { text: r.auto?.reason || '' })),
-      el('td', { class: 'unew' }, target),
+      el('td', { class: 'unew' }, target, choice, why),
       el('td', { class: 'udecide' }, decide, result(r)));
   });
   $('sections').replaceChildren(el('section', { class: 'section' },
-    el('h2', {}, 'Old site', el('small', { text: `${current.referenceUrl.replace(/^https?:\/\//, '')} → ${origin.replace(/^https?:\/\//, '')} · redirects go into the Redirection plugin` })),
+    el('h2', {}, 'Old URLs', el('small', { text: `${current.referenceUrl.replace(/^https?:\/\//, '')} → ${origin.replace(/^https?:\/\//, '')} · keep the old URL, or 301 it to the new page` })),
     el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
-      el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New URL', ''].map(h => el('th', { text: h })))),
+      el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New page · which URL to use', ''].map(h => el('th', { text: h })))),
       el('tbody', {}, body))), list,
-    (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to redirect` }),
+    (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to do` }),
       el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null));
   applyFilter();
 }
 
+// QA — After Launch checks the production site, so it unlocks once someone confirms the site is live there.
+function renderLiveGate() {
+  const p = data.state.prod;
+  $('runTool').hidden = true; $('applyFixes').hidden = true; $('fixHistory').hidden = true; $('secNav').hidden = true; $('reportLink').hidden = true; document.querySelector('.filters').hidden = true;
+  $('lastRun').textContent = ''; $('counts').replaceChildren();
+  $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Unlocks once the site is live' }),
+    el('p', { text: current.prodUrl ? `QA — After Launch checks the production site, ${current.prodUrl.replace(/^https?:\/\//, '')}. Everything else runs on staging. Confirm it once the new site is published there.` : 'QA — After Launch checks the production site; everything else runs on staging. Add the live domain as the Production site to audit in Site settings, then confirm it here once the new site is published there.' }),
+    p && current.prodUrl && p.url !== current.prodUrl ? el('p', { class: 'warnline', text: `The production URL changed since ${p.url} was confirmed live. Confirm again.` }) : null,
+    el('div', { class: 'dlg-actions' }, current.prodUrl ? el('button', { class: 'btn primary', type: 'button', text: 'Confirm the live site', onclick: openProdDialog }) : null, el('button', { class: 'btn ghost', type: 'button', text: 'Site settings', onclick: () => $('editSite').click() }))));
+}
+
+// The person confirms the app's address is the live domain with the new site on it; the app checks first.
+async function openProdDialog() {
+  $('prodErr').hidden = true; $('prodConfirm').checked = false; $('prodGo').disabled = true;
+  $('prodSite').textContent = `${current.name} · production: ${current.prodUrl}`;
+  $('prodChecks').replaceChildren(el('li', { class: 'pc-wait', text: 'Checking the live site…' }));
+  $('prodConfirmText').textContent = `${current.prodUrl} is the live production address, and the new site is published on it.`;
+  $('prodDialog').showModal();
+  let pc;
+  try { pc = await api(`/sites/${current.id}/live-check`); } catch (e) { $('prodErr').textContent = e.message; $('prodErr').hidden = false; return; }
+  $('prodChecks').replaceChildren(...pc.checks.map(c => el('li', { class: c.ok ? 'pc-ok' : c.hard ? 'pc-bad' : 'pc-warn', text: c.text })));
+  $('prodConfirm').disabled = !pc.ready;
+  if (!pc.ready) { $('prodErr').textContent = 'Fix the red items first (Site settings → Production site to audit).'; $('prodErr').hidden = false; }
+}
+$('prodConfirm').addEventListener('change', e => { $('prodGo').disabled = !e.target.checked; });
+$('prodCancel').addEventListener('click', () => $('prodDialog').close());
+$('prodGo').addEventListener('click', async () => {
+  try { $('prodGo').disabled = true; await api(`/sites/${current.id}/confirm-live`, { method: 'POST', body: { confirm: true } }); $('prodDialog').close(); await openSite(current.id); }
+  catch (e) { $('prodErr').textContent = e.message; $('prodErr').hidden = false; $('prodGo').disabled = false; }
+});
+
 async function openRedirectsDialog() {
   let plan;
   try { plan = await api(`/sites/${current.id}/fix/urls/plan`); } catch (e) { return alert(e.message); }
-  const n = plan.todo.length;
-  $('fixTitle').textContent = 'Add redirects';
+  const keep = plan.todo.filter(t => t.choice === 'keep'), move = plan.todo.filter(t => t.choice !== 'keep');
+  $('fixTitle').textContent = 'Apply URL decisions';
   $('fixSite').textContent = `${current.name} · ${plan.url}${plan.install ? ` · WP Engine install ${plan.install}` : ''} · Old → New URLs`;
   $('fixBackupSec').hidden = false;
   $('fixBackup').textContent = 'The database and active theme are saved on the server in _wpeprivate/wpeqa-backups/ first. Then the Redirection plugin is installed and activated if it isn\'t already. If the backup fails, nothing is changed.';
   $('fixAutoSec').hidden = false; $('fixAfterSec').hidden = false; $('fixManualSec').hidden = !plan.skipped.length;
-  $('fixAutoTitle').textContent = `2. Redirects to add (${n}, 301 permanent)`;
-  $('fixAuto').replaceChildren(...plan.todo.map(t => el('li', {}, el('b', { text: `${t.from} → ${t.to}` }), el('small', { text: t.page }))));
-  $('fixManualTitle').textContent = `Approved but not added (${plan.skipped.length})`;
+  $('fixAutoTitle').textContent = `2. Changes (${plan.todo.length})`;
+  $('fixAuto').replaceChildren(
+    ...keep.map(t => el('li', {}, el('b', { text: `Keep ${t.from}` }), el('small', { text: `${t.page}: the page moves from ${t.to} back to ${t.from}, and ${t.to} gets a 301 to it.` }))),
+    ...move.map(t => el('li', {}, el('b', { text: `301 ${t.from} → ${t.to}` }), el('small', { text: `${t.page}: the old URL redirects to the new page.` }))));
+  $('fixManualTitle').textContent = `Approved but not changed (${plan.skipped.length})`;
   $('fixManual').replaceChildren(...plan.skipped.map(k => el('li', {}, el('b', { text: k.from }), el('small', { text: k.why }))));
   $('claudeRow').hidden = true; $('claudeMissing').hidden = true; $('fixClaude').checked = false;
-  $('fixAfterText').textContent = 'Caches are cleared, then each old address is opened to check it now redirects to its new page.';
-  $('fixConfirmText').textContent = `I approve adding ${n} redirect${n === 1 ? '' : 's'} to the Redirection plugin on ${plan.url} now.`;
-  $('fixGo').textContent = `Back up and add ${n} redirect${n === 1 ? '' : 's'}`;
+  $('fixAfterText').textContent = 'Caches are cleared, then each old URL is opened: kept ones must show their page, redirected ones must 301 to the new page.';
+  const parts = [keep.length ? `moving ${keep.length} page${keep.length === 1 ? '' : 's'} back to ${keep.length === 1 ? 'its' : 'their'} old URL` : '', move.length ? `adding ${move.length} redirect${move.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
+  $('fixConfirmText').textContent = `I approve ${parts} on the live site ${plan.url} now.`;
+  $('fixGo').textContent = `Back up and apply ${plan.todo.length}`;
   $('fixConfirm').checked = false; $('fixGo').disabled = true;
   $('fixDialog').showModal();
 }
