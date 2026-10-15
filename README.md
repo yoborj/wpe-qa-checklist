@@ -35,13 +35,13 @@ that domain), then asks for the confirmation. Changing the production address lo
 From the command line: `node bin/wpeqa.mjs confirm-live <site> --yes`.
 
 
-![QA — Before Launch: count tiles, the section switcher, and an automatic item with its screenshot, How to fix, and Approve / Decline](docs/qa-before-launch.png)
+![QA — Before Launch: count tiles, the section switcher, and an automatic item with its screenshot, How to fix, and Approve / Decline](docs/qa-before-launch-2026-10-15.png)
 
-![One item up close: the phone number framed in red on the page, and the suggested fix](docs/qa-item-detail.png)
+![One item up close: the phone number framed in red on the page, and the suggested fix](docs/qa-item-detail-2026-10-15.png)
 
-![Apply approved fixes: backup first, the automatic fixes, and what goes to Claude or a developer](docs/qa-apply-fixes.png)
+![Apply approved fixes: backup first, the automatic fixes, and what goes to Claude or a developer](docs/qa-apply-fixes-2026-10-15.png)
 
-![QA Swarm results for every page in the sitemap](docs/qa-swarm.png)
+![QA Swarm results for every page in the sitemap](docs/qa-swarm-2026-10-15.png)
 
 Screenshots use a made-up demo site (example.com).
 
@@ -75,7 +75,7 @@ show their page, redirected ones must 301. Pages that exist only on the new site
 
 From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|new | approve <ids> | plan | apply --yes`.
 
-![Old → New URLs: each old page with the scan's status, the new URL, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls.png)
+![Old → New URLs: each old page with the scan's status, the new URL, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15.png)
 
 ## Fixing approved items
 
