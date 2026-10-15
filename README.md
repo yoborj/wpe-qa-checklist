@@ -88,7 +88,8 @@ From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|ne
 ### The old site's own redirects
 
 Redirects the old site already has (old campaigns, earlier redesigns) aren't pages, so the scan can't see them,
-and without them they'd 404 after launch. Under **Old site's redirects**, press **Import an export file**:
+and without them they'd 404 after launch. **Old site's redirects**, at the top of the tab, takes the old site's
+export: press **Import export file** or drop the file on the card. It reads:
 
 - the Redirection plugin's export (JSON or CSV), a Yoast Premium or Rank Math CSV, or any CSV with source and
   target columns;
@@ -111,9 +112,9 @@ one is opened to check it: one hop to its target, or 410. Rules set at Cloudflar
 panel aren't in any export file, so check those by hand. From the command line:
 `urls <site> import <file> | forget <file-name> | approve --all-ready`.
 
-![Old site's redirects: two imported files, each redirect with its status, where it goes on the new site, and Approve / Decline](docs/qa-old-redirects.png)
+![Old site's redirects: two imported files, each redirect with its status, where it goes on the new site, and Approve / Decline](docs/qa-old-redirects-2026-10-15.png)
 
-![Old → New URLs: each old page with the scan's status, the new URL, the two matching pages to pick from, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15b.png)
+![Old → New URLs: each old page with the scan's status, the new URL, the two matching pages to pick from, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15c.png)
 
 ## Fixing approved items
 

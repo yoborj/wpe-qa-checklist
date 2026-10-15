@@ -258,13 +258,35 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .us-redirect { background: var(--warn-soft); color: var(--warn); }
 .us-attention { background: var(--fail-soft); color: var(--fail); }
 .us-unused { background: var(--surface-2); color: var(--faint); }
-.limport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 14px; }
-.lfile { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 14.5px; }
-.lx { border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; padding: 0 6px; cursor: pointer; border-radius: 999px; }
-.lx:hover { color: var(--fail); }
-.lintro { color: var(--body); max-width: 760px; margin: 0 0 14px; }
-.lnotes { margin: 0 0 16px; padding-left: 20px; color: var(--body); font-size: 14.5px; }
-.lnotes li { margin: 3px 0; }
+.lcard { display: grid; gap: 18px; padding: 26px 30px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); transition: border-color .15s, background .15s; }
+.lcard.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface)); }
+.lcard h3 { margin: 0 0 6px; color: var(--ink); font-size: 19px; letter-spacing: -.01em; }
+.lcard p { margin: 0; color: var(--faint); max-width: 640px; }
+.lempty { grid-template-columns: auto 1fr auto; align-items: center; gap: 24px 28px; padding: 30px 32px; border-style: dashed; border-width: 1.5px; border-color: var(--line-2); box-shadow: none; }
+.licon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--accent-soft); color: var(--accent); font-size: 26px; font-weight: 800; }
+.lbody { display: grid; gap: 4px; }
+.lformats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.lformats span { padding: 5px 12px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--body); font-size: 14px; font-weight: 600; }
+.lact { display: grid; justify-items: center; gap: 8px; }
+.lact small { color: var(--faint); font-size: 14px; }
+.lhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.lfiles { display: flex; flex-wrap: wrap; gap: 10px; }
+.lfile { display: inline-flex; align-items: center; gap: 10px; padding: 7px 8px 7px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 15px; }
+.lfile b { color: var(--ink); font-weight: 700; }
+.lfile span { color: var(--faint); }
+.lx { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 999px; background: none; color: var(--faint); font-size: 18px; line-height: 1; cursor: pointer; }
+.lx:hover { color: var(--fail); background: var(--fail-soft); }
+.linfo { display: grid; gap: 6px; margin: 0; padding: 14px 18px 14px 36px; border-radius: 12px; background: var(--surface-2); color: var(--body); font-size: 15px; }
+.utable-wrap.lt { margin-top: 16px; }
+.lt .upage { width: 24%; }
+.lt .ustat { width: 34%; }
+.lt .ustat small { max-width: 360px; overflow-wrap: normal; }
+.lt .unew { width: 30%; }
+@media (max-width: 820px) {
+  .lempty { grid-template-columns: 1fr; justify-items: start; }
+  .lact { justify-items: start; }
+  .lhead { flex-direction: column; }
+}
 .lfrom { display: block; font-family: var(--mono); font-size: 15.5px; }
 .lmeta { display: block; margin-top: 6px; color: var(--faint); font-size: 13.5px; }
 .lgone { font-weight: 700; color: var(--body); }

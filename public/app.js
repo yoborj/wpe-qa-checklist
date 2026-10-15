@@ -351,14 +351,13 @@ function renderUrls() {
       el('td', { class: 'unew' }, alts, target, choice, why),
       el('td', { class: 'udecide' }, decide, result(r)));
   });
-  $('sections').replaceChildren(el('section', { class: 'section' },
+  $('sections').replaceChildren(legacySection(u, origin), el('section', { class: 'section' },
     el('h2', {}, 'Old URLs', el('small', { text: `${current.referenceUrl.replace(/^https?:\/\//, '')} → ${origin.replace(/^https?:\/\//, '')} · keep the old URL, or 301 it to the new page` })),
     el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
       el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New page · which URL to use', ''].map(h => el('th', { text: h })))),
       el('tbody', {}, body))), list,
     (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to do` }),
-      el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null),
-    legacySection(u, origin));
+      el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null));
   applyFilter();
 }
 
@@ -367,17 +366,32 @@ function legacySection(u, origin) {
   const L = u.legacy || {}; const files = L.files || []; const lrows = L.rows || [];
   const byId = new Map((u.rows || []).map(m => [m.id, m]));
   const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); if (!('target' in v)) delete r.target; render(); }).catch(e => alert(e.message));
-  const pick = el('input', { type: 'file', accept: '.csv,.json,.txt,.htaccess,.conf', hidden: true, onchange: async ev => {
-    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  const importFile = async f => {
+    if (!f) return;
     if (f.size > 20e6) return alert('That file is over 20 MB.');
     try { setRunning(true); const r = await api(`/sites/${current.id}/urls/import`, { method: 'POST', body: { name: f.name, text: await f.text() } }); follow(r.runId); } catch (e) { setRunning(false); alert(e.message); }
-  } });
+  };
+  const pick = el('input', { type: 'file', accept: '.csv,.json,.txt,.htaccess,.conf', hidden: true, onchange: ev => { const f = ev.target.files[0]; ev.target.value = ''; importFile(f); } });
   const forget = name => { if (!confirm(`Remove the redirects imported from ${name}?`)) return; api(`/sites/${current.id}/urls/import/${encodeURIComponent(name)}`, { method: 'DELETE' }).then(r => follow(r.runId)).catch(e => alert(e.message)); };
-  const head = el('div', { class: 'limport' },
-    el('button', { class: 'btn ghost', type: 'button', text: files.length ? 'Import another file' : 'Import an export file', onclick: () => pick.click() }), pick,
-    ...files.map(f => el('span', { class: 'lfile' }, `${f.name} · ${f.count ?? ''} rule${f.count === 1 ? '' : 's'}`, el('button', { type: 'button', class: 'lx', title: `Remove ${f.name}`, 'aria-label': `Remove ${f.name}`, text: '×', onclick: () => forget(f.name) }))));
-  const intro = files.length ? null : el('p', { class: 'lintro', text: 'Redirects the old site already has (old campaigns, earlier redesigns) aren\'t pages, so the scan above can\'t see them. Import its export: Redirection (JSON or CSV), Yoast or Rank Math CSV, any CSV with source and target columns, an .htaccess or nginx rules.' });
-  const notes = (L.notes || []).length ? el('ul', { class: 'lnotes' }, L.notes.map(n => el('li', { text: n }))) : null;
+  const FORMATS = ['Redirection JSON / CSV', 'Yoast CSV', 'Rank Math CSV', 'Any source, target CSV', '.htaccess', 'nginx'];
+  const card = files.length
+    ? el('div', { class: 'lcard' },
+        el('div', { class: 'lhead' },
+          el('div', {}, el('h3', { text: 'Imported from the old site' }), el('p', { text: 'Each redirect points at where its page is now. Approve the ones to keep; they go into Redirection\'s "Migrated from old site" group.' })),
+          el('button', { class: 'btn', type: 'button', text: 'Import another file', onclick: () => pick.click() })),
+        el('div', { class: 'lfiles' }, files.map(f => el('span', { class: 'lfile' }, el('b', { text: f.name }), el('span', { text: `${f.count ?? ''} rule${f.count === 1 ? '' : 's'}` }), el('button', { type: 'button', class: 'lx', title: `Remove ${f.name}`, 'aria-label': `Remove ${f.name}`, text: '×', onclick: () => forget(f.name) })))),
+        (L.notes || []).length ? el('ul', { class: 'linfo' }, L.notes.map(n => el('li', { text: n }))) : null, pick)
+    : el('div', { class: 'lcard lempty' },
+        el('div', { class: 'licon', 'aria-hidden': 'true', text: '↪' }),
+        el('div', { class: 'lbody' },
+          el('h3', { text: "Bring over the old site's redirects" }),
+          el('p', { text: "Old campaign links and earlier redirects aren't pages, so the scan can't find them. Import the old site's export and each one is pointed at its new page." }),
+          el('div', { class: 'lformats' }, FORMATS.map(f => el('span', { text: f })))),
+        el('div', { class: 'lact' }, el('button', { class: 'btn primary', type: 'button', text: 'Import export file', onclick: () => pick.click() }), el('small', { text: 'or drop the file here' }), pick));
+  // Drop a file anywhere on the card.
+  card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag'); });
+  card.addEventListener('dragleave', e => { if (!card.contains(e.relatedTarget)) card.classList.remove('drag'); });
+  card.addEventListener('drop', e => { e.preventDefault(); card.classList.remove('drag'); importFile(e.dataTransfer.files[0]); });
   const result = r => { const a = r.applied; if (!a) return null; const t = { verified: ['ok', 'Copied · verified'], applied: ['warn', a.status ? 'Done · check it' : 'Added'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const body = lrows.map(r => {
     const e = leff(r, byId);
@@ -398,9 +412,9 @@ function legacySection(u, origin) {
   });
   const tally = Object.entries(lrows.reduce((c, r) => (c[leff(r, byId).status] = (c[leff(r, byId).status] || 0) + 1, c), {})).map(([k, v]) => `${v} ${LST[k].toLowerCase()}`).join(' · ');
   return el('section', { class: 'section', 'data-keep': '1' },
-    el('h2', {}, "Old site's redirects", el('small', { text: lrows.length ? `${tally} · carried over to the Redirection plugin's "Migrated from old site" group` : 'imported from an export file' })),
-    head, intro, notes,
-    lrows.length ? el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
+    el('h2', {}, "Old site's redirects", lrows.length ? el('small', { text: tally }) : null),
+    card,
+    lrows.length ? el('div', { class: 'utable-wrap lt' }, el('table', { class: 'utable' },
       el('thead', {}, el('tr', {}, ['Old redirect', 'Status', 'Goes to on the new site', ''].map(h => el('th', { text: h })))),
       el('tbody', {}, body))) : null);
 }
