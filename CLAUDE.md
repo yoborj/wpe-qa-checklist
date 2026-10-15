@@ -61,7 +61,8 @@ After Launch until then.
 2. `node bin/wpeqa.mjs urls <site> run` (read-only) tests every old-site page on the new site and proposes
    a redirect for each old address that no longer works. `urls <site>` lists the rows with their ids.
 3. Show the person the URL changed and Needs attention rows. The scan sets each status; for a Needs attention
-   row set its new page with `urls <site> set <id> </path>`. For each changed URL the person chooses:
+   row set its new page with `urls <site> set <id> </path>` (when two pages match, the list shows both under
+   "matches:"; ask the person which one, don't pick for them). For each changed URL the person chooses:
    `urls <site> choose <id> keep` (move the page back to the old URL) or `new` (301 old → new). Then
    record their approvals with `urls <site> approve <ids>`.
 4. `urls <site> plan`, then **ask for an explicit yes**. Only then `urls <site> apply --yes`: it backs up,

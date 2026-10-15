@@ -147,7 +147,7 @@ try {
     case 'urls': {
       const s = site(rest[0]); const sub = rest[1] || 'status';
       const rows = () => getState(s.id).urls?.rows || [];
-      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${keepInfo(r) && !keepInfo(r).ok ? `; can't keep: ${keepInfo(r).why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
+      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${keepInfo(r) && !keepInfo(r).ok ? `; can't keep: ${keepInfo(r).why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}${e.status === 'attention' && r.auto?.alt?.length ? `\n      matches: ${r.auto.alt.join('  |  ')}` : ''}`; };
       if (sub === 'run') { await checkJob({ site: s, tab: URLS_TAB, log: undefined }); if (!json) rows().forEach(r => console.log(line(r))); else out(null, rows()); break; }
       if (sub === 'status') { if (json) out(null, rows()); else { if (!rows().length) die('Not run yet: urls <site> run'); rows().forEach(r => console.log(line(r))); } break; }
       if (sub === 'approve' || sub === 'decline') {

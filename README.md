@@ -55,13 +55,23 @@ of the old site (from its sitemap, or by following its links) and opens each old
 |---|---|
 | **Same URL** | The old URL works on the new site as it is |
 | **URL changed** | The page moved (e.g. `/car-accident-chiropractor` → `/services/car-accident-chiropractor/`); the matching new page was found by its slug or title |
-| **Needs attention** | A person decides: no match, two new pages match equally, several old pages would land on the same new page, or WordPress guessed a different page (e.g. `/test/` → `/testimonials/`). When two pages match, both are shown: one click picks one. Or pick or type the new page (the box suggests the new site's pages). These rows start on Use new URL; while Keep old URL is chosen, the page picker is locked |
+| **Needs attention** | A person picks the new page (see below) |
+
+**Needs attention** rows are the ones the scan can't settle on its own:
+
+- **Two new pages match equally**: both are shown with their title and address; one click picks one.
+- **No match**, **several old pages would land on the same new page**, or **WordPress guessed a different
+  page** (e.g. `/test/` → `/testimonials/`): pick or type the new page; the box suggests the new site's pages.
+
+Picking a page checks again (read-only, over SSH) whether that page can keep the old URL. These rows start on
+**Use new URL**; while **Keep old URL** is chosen, the page picker is locked and grayed out, so switch back to
+Use new URL to pick a different page.
 
 The scan sets every status. For each changed URL **you choose which URL to use**:
 
 - **Keep old URL**: the app moves the new page back to the old address (its slug, and its parent page for
-  nested addresses) and adds a 301 from where it was, so links to the new URL keep working. Pre-selected
-  whenever WordPress can serve the old address; the scan checks that over SSH and explains when it can't
+  nested addresses) and adds a 301 from where it was, so links to the new URL keep working. Pre-selected on
+  URL changed rows whenever WordPress can serve the old address; the scan checks that over SSH and explains when it can't
   (a `.html` address or query string, no parent page at that path, another page already there, a post type
   with a fixed prefix).
 - **Use new URL**: a 301 from the old URL to the new page.
@@ -75,7 +85,7 @@ show their page, redirected ones must 301. Pages that exist only on the new site
 
 From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|new | approve <ids> | plan | apply --yes`.
 
-![Old → New URLs: each old page with the scan's status, the new URL, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15.png)
+![Old → New URLs: each old page with the scan's status, the new URL, the two matching pages to pick from, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15b.png)
 
 ## Fixing approved items
 
@@ -115,8 +125,8 @@ first time, so the pre-approved commands apply) and ask, for example:
 /qa https://www.example.com
 ```
 
-Claude reads `CLAUDE.md`, installs what's missing, adds the site, runs all four checklists and
-summarises what needs fixing. Tell it which items to fix (or tick them in the web app), then:
+Claude reads `CLAUDE.md`, installs what's missing, adds the site, runs the checklists (QA — After Launch
+only once production is confirmed live) and summarises what needs fixing. Tell it which items to fix (or tick them in the web app), then:
 
 ```
 /fix example-com before-launch
@@ -153,6 +163,9 @@ npm start
 
 Open http://localhost:4646, click **Add site**, and enter the staging URL (and the production URL once
 the site is live). The app only listens on this Mac (127.0.0.1).
+
+After pulling changes, restart the app. If `npm start` says `EADDRINUSE` (port 4646 in use), the old copy is
+still running: stop it first with `lsof -ti tcp:4646 | xargs kill`, then `npm start` again.
 
 ## What Run Tool touches
 
@@ -203,7 +216,7 @@ fresh.
 
 ## Adding a check
 
-1. Write the function in `lib/checks.mjs` (`CHECKS`, `SWARM` or `AUDIT`). It gets `ctx` with
+1. Write the function in `lib/checks.mjs` (`CHECKS`, `SWARM` or `AUDIT`) or `lib/checks-more.mjs` (`MORE`). It gets `ctx` with
    `ctx.facts()` (WordPress data), `ctx.pages()` (desktop snapshot of every page),
    `ctx.mobilePages()`, `ctx.homeSnap()`, `ctx.linkCheck()`, `ctx.lighthouse()` and `ctx.home`, and
    returns `{ status: 'pass' | 'fail' | 'warn' | 'na', summary, details }`.
@@ -216,7 +229,10 @@ fresh.
 server.mjs              local web server and run queue (SSE progress)
 lib/wpe.mjs             SSH + WP-CLI facts (read-only)
 lib/crawl.mjs           sitemap discovery and Chrome page snapshots
-lib/checks.mjs          every automatic check
+lib/checks.mjs          automatic checks (core, QA Swarm, WP Site Audit, Tailwind)
+lib/checks-more.mjs     more automatic checks (navigation, phone layout, forms, accessibility, migration, hosting, builders)
+lib/redirects.mjs       Old → New URLs: scan, keep-or-new choice, Redirection plugin apply
+lib/live.mjs            QA — After Launch gate: production checks and the live confirmation
 lib/suggest.mjs         suggested fix per check
 lib/evidence.mjs        screenshots of where each flagged problem is
 lib/run.mjs             runs a tab: loads data once, runs its checks, writes results
