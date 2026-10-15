@@ -1,7 +1,9 @@
 // WPE QA Checklist front end (no build step).
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch', 'urls'];
 const URLST = { none: 'Same URL', redirect: 'URL changed', attention: 'Needs attention' };
-const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (r.auto?.keep?.ok ? 'keep' : 'new') }; };
+// Same rules as lib/redirects.mjs keepInfo/effective: the "can keep" check belongs to the page in use.
+const keepOf = r => (r.target !== undefined ? r.keep : r.auto?.keep);
+const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (status !== 'attention' && keepOf(r)?.ok ? 'keep' : 'new') }; };
 const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status !== 'none' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target && r.applied.choice === eff(r).choice));
 const STATUS = [['pass', 'Pass'], ['fail', 'Fail'], ['warn', 'Look'], ['na', 'N/A'], ['todo', 'To do']];
 const LABEL = { pass: 'Passed', fail: 'Failed', warn: 'Needs a look', na: 'N/A', todo: 'To do' };
@@ -306,17 +308,25 @@ function renderUrls() {
     return;
   }
   const origin = new URL(current.url).origin;
-  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); if (!('target' in v)) delete r.target; if (!('choice' in v)) delete r.choice; render(); }).catch(e => alert(e.message));
+  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); for (const f of ['target', 'keep', 'choice']) if (!(f in v)) delete r[f]; render(); }).catch(e => alert(e.message));
   const result = r => { const a = r.applied; if (!a) return null; const keep = a.choice === 'keep'; const t = { verified: ['ok', keep ? 'Old URL kept · verified' : 'Redirected · verified'], applied: ['warn', 'Done · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const list = el('datalist', { id: 'newPages' }, (u.newPages || []).map(p => el('option', { value: p.path, label: p.title || p.path })));
   const body = rows.map(r => {
     const e = eff(r);
     const status = el('span', { class: `ustatus us-${e.status}`, text: URLST[e.status] });
+    // "Keep old URL" moves the picked page back, so the picker locks while it's chosen; "Use new URL" unlocks it.
+    const locked = e.status === 'attention' && e.choice === 'keep';
+    const lockTip = 'Switch to Use new URL to pick a different page';
     const target = e.status !== 'attention'
       ? (e.target ? el('a', { class: 'utarget', href: origin + e.target, target: '_blank', rel: 'noopener' }, pathText(e.target)) : el('span', { class: 'muted', text: '—' }))
-      : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: 'Pick or type the new page', 'aria-label': `New page for ${r.oldPath}`, onchange: ev => save(r, { target: ev.target.value }) });
+      : el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: 'Pick or type the new page', 'aria-label': `New page for ${r.oldPath}`, disabled: locked ? true : null, title: locked ? lockTip : null, onchange: ev => save(r, { target: ev.target.value }) });
+    // Two pages matched equally well: show both, one click picks one.
+    const alts = e.status === 'attention' && r.auto?.alt?.length ? el('div', { class: 'ualt', role: 'group', 'aria-label': 'Matching pages' }, r.auto.alt.map(pth => {
+      const pg = (u.newPages || []).find(p => p.path === pth);
+      return el('button', { type: 'button', 'aria-pressed': String(e.target === pth), disabled: locked ? true : null, title: locked ? lockTip : `Use ${pth}`, onclick: () => save(r, { target: pth }) }, el('b', { text: pg?.title || pth }), el('span', {}, pathText(pth)));
+    })) : null;
     // The person's call for a changed URL: keep the old address (move the page back) or use the new one (301).
-    const k = r.auto?.keep; const canKeep = !k || k.ok;
+    const k = keepOf(r); const canKeep = !k || k.ok;
     const choice = e.status === 'none' || !e.target ? null : el('div', { class: 'uchoice', role: 'group', 'aria-label': 'Which URL to use' },
       el('button', { type: 'button', 'aria-pressed': String(e.choice === 'keep'), disabled: canKeep ? null : true, title: canKeep ? `Move ${e.target} back to ${r.oldPath}` : `Can't keep: ${k.why}`, text: 'Keep old URL', onclick: () => save(r, { choice: 'keep' }) }),
       el('button', { type: 'button', 'aria-pressed': String(e.choice === 'new'), title: `301 ${r.oldPath} → ${e.target}`, text: 'Use new URL', onclick: () => save(r, { choice: 'new' }) }));
@@ -327,7 +337,7 @@ function renderUrls() {
     return el('tr', { class: 'urow', 'data-status': e.status },
       el('td', { class: 'upage' }, el('b', { text: r.page }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
       el('td', { class: 'ustat' }, status, el('small', { text: r.auto?.reason || '' })),
-      el('td', { class: 'unew' }, target, choice, why),
+      el('td', { class: 'unew' }, alts, target, choice, why),
       el('td', { class: 'udecide' }, decide, result(r)));
   });
   $('sections').replaceChildren(el('section', { class: 'section' },

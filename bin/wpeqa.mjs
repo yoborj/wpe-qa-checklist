@@ -4,7 +4,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem } from '../lib/store.mjs';
-import { URLS_TAB, URL_STATUSES, CHOICES, effective, setUrlRow, planRedirects } from '../lib/redirects.mjs';
+import { URLS_TAB, URL_STATUSES, CHOICES, effective, keepInfo, setUrlRow, recheckKeep, planRedirects } from '../lib/redirects.mjs';
 import { LIVE_TAB, liveChecks, confirmLive, liveConfirmed } from '../lib/live.mjs';
 import { checkJob, fixJob } from '../lib/jobs.mjs';
 import { planFixes } from '../lib/fixers.mjs';
@@ -147,7 +147,7 @@ try {
     case 'urls': {
       const s = site(rest[0]); const sub = rest[1] || 'status';
       const rows = () => getState(s.id).urls?.rows || [];
-      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${r.auto?.keep && !r.auto.keep.ok ? `; can't keep: ${r.auto.keep.why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
+      const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${keepInfo(r) && !keepInfo(r).ok ? `; can't keep: ${keepInfo(r).why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
       if (sub === 'run') { await checkJob({ site: s, tab: URLS_TAB, log: undefined }); if (!json) rows().forEach(r => console.log(line(r))); else out(null, rows()); break; }
       if (sub === 'status') { if (json) out(null, rows()); else { if (!rows().length) die('Not run yet: urls <site> run'); rows().forEach(r => console.log(line(r))); } break; }
       if (sub === 'approve' || sub === 'decline') {
@@ -157,7 +157,7 @@ try {
         out(`${sub === 'approve' ? 'Approved' : 'Declined'} ${ids.length} row${ids.length === 1 ? '' : 's'}.`, { ids }); break;
       }
       if (sub === 'choose') { const [id, v] = rest.slice(2); if (!id || !CHOICES[v]) die('Usage: urls <site> choose <id> keep|new'); out(line(setUrlRow(s.id, id, { choice: v }))); break; }
-      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> </new-path>'); out(line(setUrlRow(s.id, id, { target: v }))); break; }
+      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> </new-path>'); setUrlRow(s.id, id, { target: v }); out(line(await recheckKeep(s, id))); break; }
       if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(t.choice === 'keep' ? `  KEEP ${t.from}  (move ${t.to} back to it; 301 ${t.to} → ${t.from})` : `  301  ${t.from} → ${t.to}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
       if (sub === 'apply') { if (flags.yes !== true) die('This adds redirects on the site. Show the plan (`urls <site> plan`), get the site owner\'s OK, then re-run with --yes.'); const r = await fixJob({ site: s, tab: URLS_TAB }); out(`\nRedirects: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}`, r); break; }
       die('Usage: urls <site> [run|status|approve|decline|set|plan|apply --yes]');

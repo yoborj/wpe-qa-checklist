@@ -55,7 +55,7 @@ of the old site (from its sitemap, or by following its links) and opens each old
 |---|---|
 | **Same URL** | The old URL works on the new site as it is |
 | **URL changed** | The page moved (e.g. `/car-accident-chiropractor` → `/services/car-accident-chiropractor/`); the matching new page was found by its slug or title |
-| **Needs attention** | A person decides: no match, two new pages match equally, several old pages would land on the same new page, or WordPress guessed a different page (e.g. `/test/` → `/testimonials/`). Pick or type the new page (the box suggests the new site's pages) |
+| **Needs attention** | A person decides: no match, two new pages match equally, several old pages would land on the same new page, or WordPress guessed a different page (e.g. `/test/` → `/testimonials/`). When two pages match, both are shown: one click picks one. Or pick or type the new page (the box suggests the new site's pages). These rows start on Use new URL; while Keep old URL is chosen, the page picker is locked |
 
 The scan sets every status. For each changed URL **you choose which URL to use**:
 

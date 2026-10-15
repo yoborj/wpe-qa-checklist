@@ -300,6 +300,15 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .uchoice button:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
 .uchoice button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 .uchoice button:disabled { opacity: .4; cursor: not-allowed; }
+.ualt { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.ualt button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; max-width: 260px; padding: 9px 13px; text-align: left; font-size: 14.5px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; cursor: pointer; }
+.ualt button span { font-family: var(--mono); font-size: 13px; color: var(--faint); }
+.ualt button:hover { border-color: var(--accent); }
+.ualt button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.ualt button[aria-pressed="true"] b { color: var(--accent); }
+.ualt button:disabled { opacity: .35; cursor: not-allowed; border-color: var(--line); }
+.ualt button[aria-pressed="true"]:disabled { opacity: 1; cursor: default; border-color: var(--accent); }
+.uinput:disabled { opacity: .45; cursor: not-allowed; }
 .unokeep { display: block; margin-top: 6px; color: var(--faint); font-size: 14px; }
 .prodchecks { list-style: none; padding: 0 !important; display: grid; gap: 10px; }
 .prodchecks li { position: relative; padding-left: 30px; font-size: 15.5px; }
