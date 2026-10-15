@@ -75,7 +75,7 @@ show their page, redirected ones must 301. Pages that exist only on the new site
 
 From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|new | approve <ids> | plan | apply --yes`.
 
-![Old → New URLs: each old page with the scan's status, the new URL, and Approve / Decline](docs/qa-old-new-urls.png)
+![Old → New URLs: each old page with the scan's status, the new URL, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls.png)
 
 ## Fixing approved items
 

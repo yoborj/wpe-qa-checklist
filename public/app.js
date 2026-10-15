@@ -67,8 +67,8 @@ function render() {
     return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
   }));
   $('reportLink').hidden = tab === 'urls'; $('runTool').hidden = false; document.querySelector('.filters').hidden = false;
-  document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Needs redirect' : 'Needs attention';
-  document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'No redirect' : 'Manual';
+  document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Changed' : 'Needs attention';
+  document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'Same URL' : 'Manual';
   $('secNav').hidden = tab === 'urls';
   if (tab === 'urls') return renderUrls();
   if (tab === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return renderLiveGate();

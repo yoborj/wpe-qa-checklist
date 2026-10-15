@@ -295,7 +295,7 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .sp-warn { background: var(--warn-soft); color: var(--warn); } .sp-na { background: var(--na-soft); color: var(--na); }
 
 /* Old → New URLs: keep or new, and the live-site gate */
-.uchoice { display: inline-flex; margin-top: 10px; padding: 3px; gap: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; }
+.uchoice { display: flex; width: fit-content; margin-top: 10px; padding: 3px; gap: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; }
 .uchoice button { border: 0; background: none; color: var(--faint); padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .uchoice button:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
 .uchoice button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
