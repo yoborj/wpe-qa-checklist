@@ -9,7 +9,7 @@ A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, 
 | **WP Site Audit** | The `wp-site-audit` skill's checks: collapsed and empty links, asset URLs used as links, duplicate images, junk posts and slug collisions, exposed emails, mu-plugins, long H1s, alt text, phone formats, CPT featured images, Yoast title suffix, placeholder leaks, page-local styles. |
 | **QA — Before Launch** | The Audit Sheet's "QA — Before Launch" tab. 89 of 132 items are checked automatically (WordPress settings, plugins, updates, login URL, 404, alt text, tap-to-call phones, headings, tap targets, consent, security headers, schema, Lighthouse…). The rest are manual. |
 | **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 34 of 48 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
-| **Old → New URLs** | Tests every page of the old site on the new site and proposes the redirects; approved ones are added to the Redirection plugin for you (see below). |
+| **Old → New URLs** | Tests every page of the old site on the new site and proposes the redirects, and carries over the old site's own redirects from its export file; approved ones are added to the Redirection plugin for you (see below). |
 
 Every failed or flagged item also shows a **Suggested fix** (plain WordPress steps; tagged **App can
 fix** when the app has an automatic fix for it) and, where the problem is on the page, **screenshots**:
@@ -85,6 +85,8 @@ show their page, redirected ones must 301. Pages that exist only on the new site
 
 From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|new | approve <ids> | plan | apply --yes`.
 
+![Old → New URLs: each old page with the scan's status, the new URL, the two matching pages to pick from, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15c.png)
+
 ### The old site's own redirects
 
 Redirects the old site already has (old campaigns, earlier redesigns) aren't pages, so the scan can't see them,
@@ -97,11 +99,11 @@ export: press **Import export file** or drop the file on the card. It reads:
   HTTPS/www rules are skipped) or nginx `rewrite … permanent;` rules.
 
 Import more than one file if the redirects live in several places. Importing is read-only. Each redirect is
-pointed at where its page is now, using the page decisions above:
+pointed at where its page is now, using your page decisions:
 
 | Status | Meaning |
 |---|---|
-| **Ready** | Its target exists on the new site, or is an old page from the list above (it follows that page's choice, so a chain like old → old → new becomes one hop), or it's a 410 |
+| **Ready** | Its target exists on the new site, or is an old page from the page list (it follows that page's Keep / Use new choice, so a chain like old → old → new becomes one hop), or it's a 410 |
 | **Check it** | A pattern rule, a link to another site, or a temporary (302) redirect |
 | **Needs attention** | Its target is missing on the new site (pick or type one), its address is now a real page that it would hide, or two files disagree about it |
 | **Not used** | Never used, or not in a year (from Redirection's hit counts): consider Decline |
@@ -113,8 +115,6 @@ panel aren't in any export file, so check those by hand. From the command line:
 `urls <site> import <file> | forget <file-name> | approve --all-ready`.
 
 ![Old site's redirects: two imported files, each redirect with its status, where it goes on the new site, and Approve / Decline](docs/qa-old-redirects-2026-10-15.png)
-
-![Old → New URLs: each old page with the scan's status, the new URL, the two matching pages to pick from, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15c.png)
 
 ## Fixing approved items
 

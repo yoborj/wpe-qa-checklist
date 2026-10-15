@@ -10,7 +10,7 @@ const LCLS = { ready: 'none', review: 'redirect', attention: 'attention', unused
 const viaTarget = m => { const e = eff(m); return e.status === 'none' || (e.choice === 'keep' && m.decision === 'approve') ? m.oldPath : e.target; };
 const leff = (r, byId) => {
   const a = r.auto || {};
-  if (a.via) { const m = byId.get(a.via); const t = m ? viaTarget(m) : ''; return t ? { status: a.status, target: t, reason: a.reason } : { status: 'attention', target: '', reason: m ? `${a.reason} · pick its new page in the list above first` : 'Run Tool again', waiting: true }; }
+  if (a.via) { const m = byId.get(a.via); const t = m ? viaTarget(m) : ''; return t ? { status: a.status, target: t, reason: a.reason } : { status: 'attention', target: '', reason: m ? `${a.reason} · pick its new page in the page list first` : 'Run Tool again', waiting: true }; }
   return { status: a.status, target: (a.status === 'attention' ? r.target : undefined) ?? a.target ?? '', reason: a.reason };
 };
 const legacyPending = u => { const byId = new Map((u.rows || []).map(m => [m.id, m])); return (u.legacy?.rows || []).filter(r => { if (r.decision !== 'approve' || r.auto?.byHand) return false; const e = leff(r, byId); return (e.target || r.gone) && !(r.applied?.state === 'verified' && r.applied.target === e.target); }); };
