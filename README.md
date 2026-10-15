@@ -85,6 +85,34 @@ show their page, redirected ones must 301. Pages that exist only on the new site
 
 From the command line: `node bin/wpeqa.mjs urls <site> run | choose <id> keep|new | approve <ids> | plan | apply --yes`.
 
+### The old site's own redirects
+
+Redirects the old site already has (old campaigns, earlier redesigns) aren't pages, so the scan can't see them,
+and without them they'd 404 after launch. Under **Old site's redirects**, press **Import an export file**:
+
+- the Redirection plugin's export (JSON or CSV), a Yoast Premium or Rank Math CSV, or any CSV with source and
+  target columns;
+- the old `.htaccess` (`Redirect`, `RedirectMatch`, and `RewriteRule` with `R` or `G`; WordPress's own rules and
+  HTTPS/www rules are skipped) or nginx `rewrite … permanent;` rules.
+
+Import more than one file if the redirects live in several places. Importing is read-only. Each redirect is
+pointed at where its page is now, using the page decisions above:
+
+| Status | Meaning |
+|---|---|
+| **Ready** | Its target exists on the new site, or is an old page from the list above (it follows that page's choice, so a chain like old → old → new becomes one hop), or it's a 410 |
+| **Check it** | A pattern rule, a link to another site, or a temporary (302) redirect |
+| **Needs attention** | Its target is missing on the new site (pick or type one), its address is now a real page that it would hide, or two files disagree about it |
+| **Not used** | Never used, or not in a year (from Redirection's hit counts): consider Decline |
+
+Redirects with conditions (referrer, login, …) are marked **By hand**. Approved ones are applied with the page
+decisions by **Apply URL decisions**, into the Redirection plugin's **Migrated from old site** group, and each
+one is opened to check it: one hop to its target, or 410. Rules set at Cloudflare or the old host's control
+panel aren't in any export file, so check those by hand. From the command line:
+`urls <site> import <file> | forget <file-name> | approve --all-ready`.
+
+![Old site's redirects: two imported files, each redirect with its status, where it goes on the new site, and Approve / Decline](docs/qa-old-redirects.png)
+
 ![Old → New URLs: each old page with the scan's status, the new URL, the two matching pages to pick from, Keep old URL / Use new URL, and Approve / Decline](docs/qa-old-new-urls-2026-10-15b.png)
 
 ## Fixing approved items
@@ -232,6 +260,7 @@ lib/crawl.mjs           sitemap discovery and Chrome page snapshots
 lib/checks.mjs          automatic checks (core, QA Swarm, WP Site Audit, Tailwind)
 lib/checks-more.mjs     more automatic checks (navigation, phone layout, forms, accessibility, migration, hosting, builders)
 lib/redirects.mjs       Old → New URLs: scan, keep-or-new choice, Redirection plugin apply
+lib/legacy.mjs          the old site's own redirects: export-file import, mapping onto the new site
 lib/live.mjs            QA — After Launch gate: production checks and the live confirmation
 lib/suggest.mjs         suggested fix per check
 lib/evidence.mjs        screenshots of where each flagged problem is

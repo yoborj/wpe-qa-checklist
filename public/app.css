@@ -257,6 +257,18 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .us-none { background: var(--pass-soft); color: var(--pass); }
 .us-redirect { background: var(--warn-soft); color: var(--warn); }
 .us-attention { background: var(--fail-soft); color: var(--fail); }
+.us-unused { background: var(--surface-2); color: var(--faint); }
+.limport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 14px; }
+.lfile { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 14.5px; }
+.lx { border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; padding: 0 6px; cursor: pointer; border-radius: 999px; }
+.lx:hover { color: var(--fail); }
+.lintro { color: var(--body); max-width: 760px; margin: 0 0 14px; }
+.lnotes { margin: 0 0 16px; padding-left: 20px; color: var(--body); font-size: 14.5px; }
+.lnotes li { margin: 3px 0; }
+.lfrom { display: block; font-family: var(--mono); font-size: 15.5px; }
+.lmeta { display: block; margin-top: 6px; color: var(--faint); font-size: 13.5px; }
+.lgone { font-weight: 700; color: var(--body); }
+.lhand { color: var(--faint); font-weight: 700; }
 .unew { width: 45%; min-width: 260px; }
 .uinput { width: 100%; max-width: 480px; min-width: 240px; font-family: var(--mono); font-size: 15.5px; padding: 9px 13px; background: var(--surface-2); }
 .udecide { width: 1%; white-space: nowrap; text-align: right; }

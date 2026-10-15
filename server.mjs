@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { ROOT, DATA, TABS, templates, listSites, getSite, saveSite, deleteSite, getState, setItem, runDir } from './lib/store.mjs';
-import { checkJob, fixJob, newRunId, runLogger } from './lib/jobs.mjs';
+import { checkJob, fixJob, legacyJob, newRunId, runLogger } from './lib/jobs.mjs';
+import { setLegacyRow } from './lib/legacy.mjs';
 import { claudeStatus } from './lib/claude.mjs';
 import { agency } from './lib/config.mjs';
 import { planFixes } from './lib/fixers.mjs';
@@ -21,7 +22,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 const runs = new Map(); // runId -> { siteId, tab, log[], listeners:Set, done, progress }
 
 const send = (res, code, body, type = 'application/json') => { res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' }); res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body)); };
-const body = req => new Promise((resolve, reject) => { let b = ''; req.on('data', d => { b += d; if (b.length > 1e6) req.destroy(); }); req.on('end', () => { try { resolve(b ? JSON.parse(b) : {}); } catch { reject(new Error('Invalid JSON.')); } }); });
+const body = (req, max = 1e6) => new Promise((resolve, reject) => { let b = ''; req.on('data', d => { b += d; if (b.length > max) req.destroy(); }); req.on('end', () => { try { resolve(b ? JSON.parse(b) : {}); } catch { reject(new Error('Invalid JSON.')); } }); });
 
 function serveFile(res, base, rel) {
   const f = path.resolve(base, '.' + path.sep + rel);
@@ -43,7 +44,7 @@ function startJob(site, tab, kind, opts = {}) {
   runs.set(id, run);
   const log = runLogger(runDir(site.id, id), l => { run.log.push(l); emit(run, 'log', l); });
   const progress = p => { run.progress = Math.max(run.progress, Math.min(1, p)); emit(run, 'progress', run.progress); };
-  const job = kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude }).then(r => r.meta) : checkJob({ site, tab, id, log, progress });
+  const job = kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude }).then(r => r.meta) : kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress });
   job.then(meta => { run.result = meta; emit(run, 'done', meta); })
     .catch(e => { log(`Stopped: ${e.message}`); run.error = e.message; emit(run, 'failed', { error: e.message }); })
     .finally(() => { run.done = true; for (const l of run.listeners) l.end(); run.listeners.clear(); setTimeout(() => runs.delete(id), 30 * 60 * 1000); });
@@ -67,13 +68,23 @@ const server = http.createServer(async (req, res) => {
     if (p[1] === 'sites' && p[2] && !site) return send(res, 404, { error: 'Unknown site.' });
     if (req.method === 'GET' && p[1] === 'sites' && !p[3]) {
       const active = [...runs.values()].filter(r => r.siteId === site.id && !r.done).map(r => ({ id: r.id, tab: r.tab, kind: r.kind, progress: r.progress }));
-      return send(res, 200, { site, state: getState(site.id), active });
+      // Imported files are sent without their parsed rules (the rows carry what the page needs).
+      const state = getState(site.id); const L = state.urls?.legacy;
+      if (L?.files) L.files = L.files.map(({ rules, ...f }) => ({ ...f, count: rules?.length ?? f.count }));
+      return send(res, 200, { site, state, active });
     }
     if (req.method === 'DELETE' && p[1] === 'sites' && !p[3]) { deleteSite(site.id); return send(res, 200, { ok: true }); }
     if (req.method === 'PUT' && p[3] === 'items' && TABS.includes(p[4]) && p[5]) return send(res, 200, setItem(site.id, p[4], p[5], await body(req)).tabs[p[4]].items[p[5]]);
     if (req.method === 'POST' && p[3] === 'run' && JOB_TABS.includes(p[4])) { const r = startJob(site, p[4], 'check'); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'live-check') return send(res, 200, await liveChecks(site));
     if (req.method === 'POST' && p[3] === 'confirm-live') { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the live site first.' }); return send(res, 200, await confirmLive(site)); }
+    if (req.method === 'POST' && p[3] === 'urls' && p[4] === 'import') {
+      const b = await body(req, 25e6); const name = String(b.name || '').replace(/[\\/]/g, '').slice(0, 120);
+      if (!name || typeof b.text !== 'string' || !b.text.trim()) return send(res, 400, { error: 'Choose an export file.' });
+      return send(res, 200, { runId: startJob(site, URLS_TAB, 'import', { file: { name, text: b.text } }).id });
+    }
+    if (req.method === 'DELETE' && p[3] === 'urls' && p[4] === 'import' && p[5]) return send(res, 200, { runId: startJob(site, URLS_TAB, 'import', { remove: p[5] }).id });
+    if (req.method === 'PUT' && p[3] === 'urls' && p[4]?.startsWith('L')) return send(res, 200, setLegacyRow(site.id, p[4], await body(req)));
     if (req.method === 'PUT' && p[3] === 'urls' && p[4]) { const b = await body(req); const row = setUrlRow(site.id, p[4], b); return send(res, 200, 'target' in b ? await recheckKeep(site, p[4]) : row); }
     if (req.method === 'GET' && p[3] === 'fix' && p[4] === URLS_TAB && p[5] === 'plan') { const pl = planRedirects(site.id); return send(res, 200, { install: site.install, url: site.url, todo: pl.todo, skipped: pl.skipped.map(r => ({ page: r.page, from: r.oldPath, why: r.why })) }); }
     if (req.method === 'POST' && p[3] === 'fix' && p[4] === URLS_TAB) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the redirects first.' }); const r = startJob(site, URLS_TAB, 'fix'); return send(res, 200, { runId: r.id }); }

@@ -4,6 +4,16 @@ const URLST = { none: 'Same URL', redirect: 'URL changed', attention: 'Needs att
 // Same rules as lib/redirects.mjs keepInfo/effective: the "can keep" check belongs to the page in use.
 const keepOf = r => (r.target !== undefined ? r.keep : r.auto?.keep);
 const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (status !== 'attention' && keepOf(r)?.ok ? 'keep' : 'new') }; };
+// Same rules as lib/legacy.mjs legacyEffective: an old redirect to an old page follows that page's decision.
+const LST = { ready: 'Ready', review: 'Check it', attention: 'Needs attention', unused: 'Not used' };
+const LCLS = { ready: 'none', review: 'redirect', attention: 'attention', unused: 'unused' };
+const viaTarget = m => { const e = eff(m); return e.status === 'none' || (e.choice === 'keep' && m.decision === 'approve') ? m.oldPath : e.target; };
+const leff = (r, byId) => {
+  const a = r.auto || {};
+  if (a.via) { const m = byId.get(a.via); const t = m ? viaTarget(m) : ''; return t ? { status: a.status, target: t, reason: a.reason } : { status: 'attention', target: '', reason: m ? `${a.reason} · pick its new page in the list above first` : 'Run Tool again', waiting: true }; }
+  return { status: a.status, target: (a.status === 'attention' ? r.target : undefined) ?? a.target ?? '', reason: a.reason };
+};
+const legacyPending = u => { const byId = new Map((u.rows || []).map(m => [m.id, m])); return (u.legacy?.rows || []).filter(r => { if (r.decision !== 'approve' || r.auto?.byHand) return false; const e = leff(r, byId); return (e.target || r.gone) && !(r.applied?.state === 'verified' && r.applied.target === e.target); }); };
 const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status !== 'none' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target && r.applied.choice === eff(r).choice));
 const STATUS = [['pass', 'Pass'], ['fail', 'Fail'], ['warn', 'Look'], ['na', 'N/A'], ['todo', 'To do']];
 const LABEL = { pass: 'Passed', fail: 'Failed', warn: 'Needs a look', na: 'N/A', todo: 'To do' };
@@ -59,7 +69,8 @@ function render() {
   // Tabs with a badge for items that need attention.
   $('tabs').replaceChildren(...TAB_ORDER.map(t => {
     if (t === 'urls') {
-      const u = data.state.urls || {}; const open = (u.rows || []).filter(r => eff(r).status !== 'none' && !r.decision).length;
+      const u = data.state.urls || {}; const byId = new Map((u.rows || []).map(m => [m.id, m]));
+      const open = (u.rows || []).filter(r => eff(r).status !== 'none' && !r.decision).length + (u.legacy?.rows || []).filter(r => leff(r, byId).status === 'attention' && !r.decision).length;
       return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, 'Old → New URLs', u.runs?.length ? el('span', { class: 'badge' + (open ? '' : ' ok'), text: open ? String(open) : '✓' }) : null);
     }
     if (t === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return el('button', { role: 'tab', 'aria-selected': String(t === tab), title: 'Unlocks once the production site is confirmed live', onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, templates[t].title, el('span', { class: 'badge lock', text: '🔒' }));
@@ -167,13 +178,13 @@ $('shotDialog').addEventListener('close', () => { $('shotImg').removeAttribute('
 
 function applyFilter() {
   document.querySelectorAll('.filters button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
-  document.querySelectorAll('.item').forEach(r => {
+  document.querySelectorAll('.item, .urow').forEach(r => {
     const st = r.dataset.status; const hide = r.classList.contains('urow') ? (filter === 'attention' ? st === 'none' : filter === 'manual' ? st !== 'none' : false) : filter === 'attention' ? !['fail', 'warn'].includes(st) : filter === 'manual' ? r.dataset.auto === '1' : false;
     r.classList.toggle('hidden-by-filter', hide);
   });
   const pickSec = tab !== 'urls' ? secSel[tab] || 'all' : 'all';
   let shown = 0;
-  document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)'); if (!s.hidden) shown++; });
+  document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || (!s.dataset.keep && !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)')); if (!s.hidden) shown++; });
   $('secEmpty').hidden = tab === 'urls' || shown > 0;
 }
 
@@ -291,7 +302,7 @@ function renderUrls() {
   const u = data.state.urls || {}; const rows = u.rows || []; const last = u.runs?.[0];
   $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
   $('runTool').title = `Test every page of the old site on ${current.name}`;
-  const pend = urlsPending(rows).length;
+  const pend = urlsPending(rows).length + legacyPending(u).length;
   $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Apply URL decisions (${pend})`;
   $('fixHistory').hidden = true;
   if (!current.referenceUrl) {
@@ -304,7 +315,7 @@ function renderUrls() {
   const tile = (cls, n, label) => el('div', { class: `count ${cls}` }, el('b', { text: String(n) }), el('span', { text: label }));
   $('counts').replaceChildren(...(rows.length ? [tile('c-pass', c.none, 'same URL'), tile('c-warn', c.redirect, 'URL changed'), tile('c-fail', c.attention, 'need attention'), tile('c-auto', rows.filter(r => r.decision === 'approve').length, 'approved'), tile('c-na', done, 'done')] : []));
   if (!rows.length) {
-    $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site.')));
+    $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site. Then you can import the old site\'s redirects.')));
     return;
   }
   const origin = new URL(current.url).origin;
@@ -346,8 +357,52 @@ function renderUrls() {
       el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New page · which URL to use', ''].map(h => el('th', { text: h })))),
       el('tbody', {}, body))), list,
     (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to do` }),
-      el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null));
+      el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null),
+    legacySection(u, origin));
   applyFilter();
+}
+
+// The old site's own redirects, imported from an export file and pointed at where each page is now.
+function legacySection(u, origin) {
+  const L = u.legacy || {}; const files = L.files || []; const lrows = L.rows || [];
+  const byId = new Map((u.rows || []).map(m => [m.id, m]));
+  const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); if (!('target' in v)) delete r.target; render(); }).catch(e => alert(e.message));
+  const pick = el('input', { type: 'file', accept: '.csv,.json,.txt,.htaccess,.conf', hidden: true, onchange: async ev => {
+    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+    if (f.size > 20e6) return alert('That file is over 20 MB.');
+    try { setRunning(true); const r = await api(`/sites/${current.id}/urls/import`, { method: 'POST', body: { name: f.name, text: await f.text() } }); follow(r.runId); } catch (e) { setRunning(false); alert(e.message); }
+  } });
+  const forget = name => { if (!confirm(`Remove the redirects imported from ${name}?`)) return; api(`/sites/${current.id}/urls/import/${encodeURIComponent(name)}`, { method: 'DELETE' }).then(r => follow(r.runId)).catch(e => alert(e.message)); };
+  const head = el('div', { class: 'limport' },
+    el('button', { class: 'btn ghost', type: 'button', text: files.length ? 'Import another file' : 'Import an export file', onclick: () => pick.click() }), pick,
+    ...files.map(f => el('span', { class: 'lfile' }, `${f.name} · ${f.count ?? ''} rule${f.count === 1 ? '' : 's'}`, el('button', { type: 'button', class: 'lx', title: `Remove ${f.name}`, 'aria-label': `Remove ${f.name}`, text: '×', onclick: () => forget(f.name) }))));
+  const intro = files.length ? null : el('p', { class: 'lintro', text: 'Redirects the old site already has (old campaigns, earlier redesigns) aren\'t pages, so the scan above can\'t see them. Import its export: Redirection (JSON or CSV), Yoast or Rank Math CSV, any CSV with source and target columns, an .htaccess or nginx rules.' });
+  const notes = (L.notes || []).length ? el('ul', { class: 'lnotes' }, L.notes.map(n => el('li', { text: n }))) : null;
+  const result = r => { const a = r.applied; if (!a) return null; const t = { verified: ['ok', 'Copied · verified'], applied: ['warn', a.status ? 'Done · check it' : 'Added'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
+  const body = lrows.map(r => {
+    const e = leff(r, byId);
+    const meta = [r.source, r.hits !== null && r.hits !== undefined ? `${r.hits} hit${r.hits === 1 ? '' : 's'}` : '', r.regex ? 'pattern' : '', !r.gone && r.code !== 301 ? String(r.code) : ''].filter(Boolean).join(' · ');
+    const target = r.gone ? el('span', { class: 'lgone', text: `${r.code} Gone` })
+      : e.status === 'attention' && !e.waiting ? el('input', { class: 'uinput', type: 'text', list: 'newPages', value: e.target, placeholder: 'Pick or type the new page', 'aria-label': `Target for ${r.from}`, onchange: ev => save(r, { target: ev.target.value }) })
+      : !e.target ? el('span', { class: 'muted', text: '—' })
+      : r.regex ? el('code', { class: 'utarget' }, pathText(e.target))
+      : el('a', { class: 'utarget', href: r.external ? e.target : origin + e.target, target: '_blank', rel: 'noopener' }, pathText(e.target));
+    const decide = r.auto?.byHand ? el('small', { class: 'lhand', text: 'By hand' }) : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
+      el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target || r.gone ? null : true, title: e.target || r.gone ? '' : 'Pick the target first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
+      el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
+    return el('tr', { class: 'lrow', 'data-status': e.status },
+      el('td', { class: 'upage' }, el('code', { class: 'lfrom' }, pathText(r.from)), el('small', { class: 'lmeta', text: meta })),
+      el('td', { class: 'ustat' }, el('span', { class: `ustatus us-${LCLS[e.status]}`, text: LST[e.status] }), el('small', { text: e.reason || '' })),
+      el('td', { class: 'unew' }, target),
+      el('td', { class: 'udecide' }, decide, result(r)));
+  });
+  const tally = Object.entries(lrows.reduce((c, r) => (c[leff(r, byId).status] = (c[leff(r, byId).status] || 0) + 1, c), {})).map(([k, v]) => `${v} ${LST[k].toLowerCase()}`).join(' · ');
+  return el('section', { class: 'section', 'data-keep': '1' },
+    el('h2', {}, "Old site's redirects", el('small', { text: lrows.length ? `${tally} · carried over to the Redirection plugin's "Migrated from old site" group` : 'imported from an export file' })),
+    head, intro, notes,
+    lrows.length ? el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
+      el('thead', {}, el('tr', {}, ['Old redirect', 'Status', 'Goes to on the new site', ''].map(h => el('th', { text: h })))),
+      el('tbody', {}, body))) : null);
 }
 
 // QA — After Launch checks the production site, so it unlocks once someone confirms the site is live there.
@@ -384,7 +439,7 @@ $('prodGo').addEventListener('click', async () => {
 async function openRedirectsDialog() {
   let plan;
   try { plan = await api(`/sites/${current.id}/fix/urls/plan`); } catch (e) { return alert(e.message); }
-  const keep = plan.todo.filter(t => t.choice === 'keep'), move = plan.todo.filter(t => t.choice !== 'keep');
+  const keep = plan.todo.filter(t => t.choice === 'keep'), move = plan.todo.filter(t => t.choice !== 'keep' && !t.legacy), old = plan.todo.filter(t => t.legacy);
   $('fixTitle').textContent = 'Apply URL decisions';
   $('fixSite').textContent = `${current.name} · ${plan.url}${plan.install ? ` · WP Engine install ${plan.install}` : ''} · Old → New URLs`;
   $('fixBackupSec').hidden = false;
@@ -393,13 +448,14 @@ async function openRedirectsDialog() {
   $('fixAutoTitle').textContent = `2. Changes (${plan.todo.length})`;
   $('fixAuto').replaceChildren(
     ...keep.map(t => el('li', {}, el('b', { text: `Keep ${t.from}` }), el('small', { text: `${t.page}: the page moves from ${t.to} back to ${t.from}, and ${t.to} gets a 301 to it.` }))),
-    ...move.map(t => el('li', {}, el('b', { text: `301 ${t.from} → ${t.to}` }), el('small', { text: `${t.page}: the old URL redirects to the new page.` }))));
+    ...move.map(t => el('li', {}, el('b', { text: `301 ${t.from} → ${t.to}` }), el('small', { text: `${t.page}: the old URL redirects to the new page.` }))),
+    ...old.map(t => el('li', {}, el('b', { text: t.gone ? `${t.code} ${t.from}` : `${t.code} ${t.from} → ${t.to}` }), el('small', { text: `${t.page}: carried over${t.gone ? ' as gone' : ''}${t.regex ? ' (pattern)' : ''}, in the "Migrated from old site" group.` }))));
   $('fixManualTitle').textContent = `Approved but not changed (${plan.skipped.length})`;
   $('fixManual').replaceChildren(...plan.skipped.map(k => el('li', {}, el('b', { text: k.from }), el('small', { text: k.why }))));
   $('claudeRow').hidden = true; $('claudeMissing').hidden = true; $('fixClaude').checked = false;
-  $('fixAfterText').textContent = 'Caches are cleared, then each old URL is opened: kept ones must show their page, redirected ones must 301 to the new page.';
-  const parts = [keep.length ? `moving ${keep.length} page${keep.length === 1 ? '' : 's'} back to ${keep.length === 1 ? 'its' : 'their'} old URL` : '', move.length ? `adding ${move.length} redirect${move.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
-  $('fixConfirmText').textContent = `I approve ${parts} on the live site ${plan.url} now.`;
+  $('fixAfterText').textContent = `Caches are cleared, then each old URL is opened: kept ones must show their page, redirected ones must land on the new page${old.some(t => t.gone) ? ', gone ones must answer 410' : ''}.${old.some(t => t.regex) ? ' Pattern rules are added but not opened.' : ''}`;
+  const parts = [keep.length ? `moving ${keep.length} page${keep.length === 1 ? '' : 's'} back to ${keep.length === 1 ? 'its' : 'their'} old URL` : '', move.length ? `adding ${move.length} redirect${move.length === 1 ? '' : 's'}` : '', old.length ? `carrying over ${old.length} of the old site's redirect${old.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
+  $('fixConfirmText').textContent = `I approve ${parts} on ${plan.url} now.`;
   $('fixGo').textContent = `Back up and apply ${plan.todo.length}`;
   $('fixConfirm').checked = false; $('fixGo').disabled = true;
   $('fixDialog').showModal();

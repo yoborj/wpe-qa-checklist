@@ -65,6 +65,10 @@ After Launch until then.
    "matches:"; ask the person which one, don't pick for them). For each changed URL the person chooses:
    `urls <site> choose <id> keep` (move the page back to the old URL) or `new` (301 old → new). Then
    record their approvals with `urls <site> approve <ids>`.
+   If the old site had its own redirects, ask the person for its export file (Redirection JSON/CSV, a Yoast or
+   Rank Math CSV, or the `.htaccess`) and run `urls <site> import <file>`. `urls <site>` then lists them under
+   "Old site's redirects" (ids start with L). Approve the Ready ones with the person (`approve --all-ready` only
+   when they say so); for Needs attention set a target with `set <id> </path>`; Check it rows need their OK one by one.
 4. `urls <site> plan`, then **ask for an explicit yes**. Only then `urls <site> apply --yes`: it backs up,
    installs/activates the Redirection plugin if needed, moves kept pages back (with a 301 from where they
    were), adds the other 301s, and checks every old URL. Report what was verified and the backup path.

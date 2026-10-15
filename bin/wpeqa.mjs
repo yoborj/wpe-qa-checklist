@@ -6,7 +6,9 @@ import path from 'node:path';
 import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem } from '../lib/store.mjs';
 import { URLS_TAB, URL_STATUSES, CHOICES, effective, keepInfo, setUrlRow, recheckKeep, planRedirects } from '../lib/redirects.mjs';
 import { LIVE_TAB, liveChecks, confirmLive, liveConfirmed } from '../lib/live.mjs';
-import { checkJob, fixJob } from '../lib/jobs.mjs';
+import { checkJob, fixJob, legacyJob } from '../lib/jobs.mjs';
+import { LEGACY_STATUSES, legacyEffective, legacyRows, setLegacyRow } from '../lib/legacy.mjs';
+import fs from 'node:fs';
 import { planFixes } from '../lib/fixers.mjs';
 import { report } from '../lib/report.mjs';
 import { claudeStatus, RULES } from '../lib/claude.mjs';
@@ -32,6 +34,10 @@ const HELP = `WPE QA Checklist — command line
   urls <site> approve <id…|--all-redirects>   /  urls <site> decline <id…>
   urls <site> set <id> </new-path>      Set the new page of a row that needs attention (the scan sets status)
   urls <site> choose <id> keep|new      Keep the old URL (move the page back) or use the new URL (301 from the old one)
+  urls <site> import <file>              Import the old site's redirects from an export file (Redirection JSON/CSV,
+                                         Yoast or Rank Math CSV, any source,target CSV, .htaccess, nginx); read-only
+  urls <site> forget <file-name>         Drop an imported file's redirects
+  urls <site> approve --all-ready        Approve every imported redirect marked Ready
   urls <site> plan                       The redirects "Apply" would add to the Redirection plugin
   urls <site> apply --yes                Backup, install/set up Redirection if needed, add the approved 301s, verify
   rules <site>                           The production rules for fixing this site by hand
@@ -149,18 +155,24 @@ try {
       const rows = () => getState(s.id).urls?.rows || [];
       const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${keepInfo(r) && !keepInfo(r).ok ? `; can't keep: ${keepInfo(r).why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}${e.status === 'attention' && r.auto?.alt?.length ? `\n      matches: ${r.auto.alt.join('  |  ')}` : ''}`; };
       if (sub === 'run') { await checkJob({ site: s, tab: URLS_TAB, log: undefined }); if (!json) rows().forEach(r => console.log(line(r))); else out(null, rows()); break; }
-      if (sub === 'status') { if (json) out(null, rows()); else { if (!rows().length) die('Not run yet: urls <site> run'); rows().forEach(r => console.log(line(r))); } break; }
+      const mapById = () => new Map(rows().map(m => [m.id, m]));
+      const lline = r => { const e = legacyEffective(r, mapById()); return `  [${r.id}] ${LEGACY_STATUSES[e.status].padEnd(16)} ${r.from}${r.gone ? `  ${r.code} gone` : e.target ? `  ${r.code} → ${e.target}` : ''}  (${r.source}${r.hits !== null ? `, ${r.hits} hits` : ''})${e.reason ? `\n      ${e.reason}` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
+      const showLegacy = () => { const L = legacyRows(s.id); if (!L.length) return; console.log(`\nOld site's redirects (${(getState(s.id).urls?.legacy?.files || []).map(f => f.name).join(', ')}):`); L.forEach(r => console.log(lline(r))); (getState(s.id).urls?.legacy?.notes || []).forEach(n => console.log('  note: ' + n)); };
+      if (sub === 'import') { const f = rest[2]; if (!f || !fs.existsSync(f)) die('Usage: urls <site> import <export-file>'); const r = await legacyJob({ site: s, file: { name: path.basename(f), text: fs.readFileSync(f, 'utf8') } }); if (json) out(null, legacyRows(s.id)); else { showLegacy(); if (!r) console.log('Nothing to carry over.'); } break; }
+      if (sub === 'forget') { if (!rest[2]) die('Usage: urls <site> forget <file-name>'); await legacyJob({ site: s, remove: rest[2] }); out(`Removed ${rest[2]}.`); break; }
+      if (sub === 'status') { if (json) out(null, { pages: rows(), redirects: legacyRows(s.id) }); else { if (!rows().length && !legacyRows(s.id).length) die('Not run yet: urls <site> run'); rows().forEach(r => console.log(line(r))); showLegacy(); } break; }
       if (sub === 'approve' || sub === 'decline') {
         let ids = rest.slice(2); if (flags['all-redirects']) ids = rows().filter(r => effective(r).status === 'redirect').map(r => r.id);
-        if (!ids.length) die('Which rows? Pass ids (see `urls <site>`) or --all-redirects.');
-        ids.forEach(id => setUrlRow(s.id, id, { decision: sub === 'approve' ? 'approve' : 'decline' }));
+        if (flags['all-ready']) ids = ids.concat(legacyRows(s.id).filter(r => legacyEffective(r, mapById()).status === 'ready').map(r => r.id));
+        if (!ids.length) die('Which rows? Pass ids (see `urls <site>`), --all-redirects or --all-ready.');
+        ids.forEach(id => (id.startsWith('L') ? setLegacyRow : setUrlRow)(s.id, id, { decision: sub === 'approve' ? 'approve' : 'decline' }));
         out(`${sub === 'approve' ? 'Approved' : 'Declined'} ${ids.length} row${ids.length === 1 ? '' : 's'}.`, { ids }); break;
       }
       if (sub === 'choose') { const [id, v] = rest.slice(2); if (!id || !CHOICES[v]) die('Usage: urls <site> choose <id> keep|new'); out(line(setUrlRow(s.id, id, { choice: v }))); break; }
-      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> </new-path>'); setUrlRow(s.id, id, { target: v }); out(line(await recheckKeep(s, id))); break; }
-      if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(t.choice === 'keep' ? `  KEEP ${t.from}  (move ${t.to} back to it; 301 ${t.to} → ${t.from})` : `  301  ${t.from} → ${t.to}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
+      if (sub === 'set') { const [id, v] = rest.slice(2); if (!id || !v) die('Usage: urls <site> set <id> </new-path>'); if (id.startsWith('L')) { out(lline(setLegacyRow(s.id, id, { target: v }))); break; } setUrlRow(s.id, id, { target: v }); out(line(await recheckKeep(s, id))); break; }
+      if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(t.choice === 'keep' ? `  KEEP ${t.from}  (move ${t.to} back to it; 301 ${t.to} → ${t.from})` : t.gone ? `  ${t.code}  ${t.from}  (gone; from the old site)` : `  ${t.code || 301}  ${t.from} → ${t.to}${t.legacy ? '  (from the old site)' : ''}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
       if (sub === 'apply') { if (flags.yes !== true) die('This adds redirects on the site. Show the plan (`urls <site> plan`), get the site owner\'s OK, then re-run with --yes.'); const r = await fixJob({ site: s, tab: URLS_TAB }); out(`\nRedirects: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}`, r); break; }
-      die('Usage: urls <site> [run|status|approve|decline|set|plan|apply --yes]');
+      die('Usage: urls <site> [run|status|import <file>|forget <name>|approve|decline|choose|set|plan|apply --yes]');
     }
     case 'rules': { const s = site(rest[0]); if (!s.install) die('This site has no WP Engine install.'); console.log(RULES(s)); break; }
     case 'serve': { spawn(process.execPath, [path.join(ROOT, 'server.mjs')], { stdio: 'inherit' }); break; }
