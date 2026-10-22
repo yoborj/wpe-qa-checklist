@@ -3,9 +3,18 @@
 A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, each with a
 **Run Tool** button that runs the automatic checks and fills the checklist in.
 
-**Version 0.2.0** (shown next to the app's name in the header; see [CHANGELOG.md](CHANGELOG.md)). Reads the
-security status of [Greenlight](https://github.com/yoborj/greenlight) **v0.2.0 or newer** (see
-[Greenlight security](#greenlight-security)).
+**Version 0.2.0** (shown next to the app's name in the header; see [CHANGELOG.md](CHANGELOG.md)).
+
+**New in 0.2.0: security checks.** On sites running [Greenlight](https://github.com/yoborj/greenlight) **v0.2.0 or
+newer**, Run Tool reads Greenlight's security setup and alerts:
+
+- **Before launch:** are the recommended hardening features on (security headers, hidden usernames, file editor
+  off, email obfuscation, admin-change, script-drift, core-file and content alerts)? The app can turn the missing
+  ones on for you, with a backup first.
+- **After launch:** are there open security alerts on the live site (admin changes, new script domains, changed
+  core files, suspicious content)? High-severity alerts fail the checklist.
+- The report, the command line (`wpeqa greenlight <site>`) and the security-headers and exposed-email
+  suggestions all show it. Details: [Greenlight security](#greenlight-security).
 
 | Tab | What Run Tool does |
 |---|---|
@@ -130,6 +139,25 @@ checks: staging for Before Launch, production for After Launch):
 |---|---|---|
 | **QA — Before Launch** → Security and Updates | **Greenlight security hardening** | Fails while any recommended feature is off: security headers, hide usernames, file editor off, email obfuscation, admin-change alerts, script-drift alerts, core-file check, content check. HSTS and CSP (report-only) are listed for information only. **App can fix**: approve it and the fix run turns the off features on with `wp greenlight set <feature> 1` (one short command each, after the usual backup), then re-checks. |
 | **QA — After Launch** → Security and Updates | **No open Greenlight security alerts** | Open alerts grouped by severity, high first. Any **high** alert fails; medium and low need a look. |
+
+What the app does with each Greenlight feature:
+
+| Greenlight feature | What it does on the site | In the app |
+|---|---|---|
+| Security headers | Sends the standard security headers | Recommended · app can turn on |
+| Hide usernames | Keeps login names from showing publicly | Recommended · app can turn on |
+| File editor off | Removes the theme/plugin code editor from wp-admin | Recommended · app can turn on |
+| Email obfuscation | Hides email addresses on pages from scrapers | Recommended · app can turn on |
+| Admin-change alerts | Alerts when an administrator is added or changed | Recommended · app can turn on |
+| Script-drift alerts | Alerts when pages load a script from a domain not in the baseline | Recommended · app can turn on |
+| Core-file check | Alerts when WordPress core files change | Recommended · app can turn on |
+| Content check | Alerts on suspicious content added to posts | Recommended · app can turn on |
+| HSTS | Tells browsers to use HTTPS only | For information (turn on once every subdomain serves HTTPS) |
+| CSP (report-only) | Content Security Policy in report-only mode (reports, blocks nothing) | For information |
+| XML-RPC off | Turns off xmlrpc.php | Shown, optional |
+| Application passwords off | Turns off WordPress application passwords | Shown, optional |
+
+The CLI command also lists Greenlight's script baseline and trusted embed domains.
 
 When Greenlight can't answer, the item says why instead: **not installed**, **installed but inactive**,
 **update Greenlight to v0.2.0+** (older versions don't have the command), **unsupported schema** (a newer
