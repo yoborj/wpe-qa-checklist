@@ -143,3 +143,22 @@ test('report and one-line summary include Greenlight', async () => {
   assert.match(md, /2 recommended Greenlight security features are off/);
   assert.equal(greenlightLine(glSummary(parsed('missing'))), 'Greenlight (example): Greenlight is not installed.');
 });
+
+// Greenlight 0.2.0 as released: the example from its README, and a site just upgraded from 0.1.x (alerts default off).
+test('Greenlight 0.2.0 README output: one high script-drift alert fails After Launch, hardening passes', async () => {
+  const g = parsed('greenlight-0.2.0-readme');
+  assert.equal(g.state, 'ok'); assert.equal(g.notes.length, 0); assert.equal(g.alerts[0].post_id, 6);
+  assert.equal((await run('gl.hardening', 'greenlight-0.2.0-readme')).status, 'pass');
+  const a = await run('gl.alerts', 'greenlight-0.2.0-readme');
+  assert.equal(a.status, 'fail'); assert.match(a.details[0], /^HIGH · Script drift · 2026-10-22 05:16 UTC · New script domain cdn\.example\.net/);
+});
+
+test('upgraded from 0.1.x: the four alert features are off → hardening fails and the fix turns exactly those on', async () => {
+  const h = await run('gl.hardening', 'upgrade-defaults');
+  assert.equal(h.status, 'fail'); assert.deepEqual(h.greenlight.off, ['admin_alerts', 'script_drift', 'core_file_check', 'content_check']);
+  const a = await run('gl.alerts', 'upgrade-defaults');
+  assert.equal(a.status, 'warn'); assert.match(a.summary, /nothing is being watched/);
+  const p = planFixes(template, tabWith(h), site);
+  assert.deepEqual(FIXERS['gl.hardening'].script(p.auto[0].item, site).split('\n').filter(l => l.startsWith('wp ')),
+    ['admin_alerts', 'script_drift', 'core_file_check', 'content_check'].map(k => `wp greenlight set ${k} 1 || exit 1`));
+});

@@ -1,0 +1,9 @@
+GL_PLUGIN active 0.2.0
+<<<GL_JSON>>>
+{"greenlight_version":"0.2.0","schema":1,"features":{"headers":true,"hsts":false,"csp_report_only":false,"hide_usernames":true,"xmlrpc_off":true,"file_editor_off":true,"email_obfuscation":true,"app_passwords_off":false,"admin_alerts":true,"script_drift":true,"core_file_check":true,"content_check":true},"script_baseline":["googletagmanager.com"],"trusted_embed_domains":["calendly.com","google.com","jotform.com","vimeo.com","youtube.com"],"alerts":[{"id":"079e8c0cc382","type":"script_drift","severity":"high","time":"2026-10-22T05:16:06Z","message":"New script domain cdn.example.net on /about/, not a service Greenlight knows. Check which plugin, theme or tag added it.","url":"https://example.com/about/","post_id":6}]}
+
+<<</GL_JSON>>>
+GL_EXIT 0
+<<<GL_ERR>>>
+
+<<</GL_ERR>>>

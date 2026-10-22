@@ -3,6 +3,19 @@
 All notable changes to WPE QA Checklist. Versions follow [semantic versioning](https://semver.org/); each one is
 tagged `vX.Y.Z` with a GitHub release.
 
+## 0.2.1 — 2026-10-22
+
+Still requires **Greenlight v0.2.0 or newer**.
+
+### Changed
+- Checked against Greenlight 0.2.0 as released: its `wp greenlight set` keys are the feature names this app uses,
+  and `wp greenlight security --format=json` prints the shape this app reads (schema 1). The fix's TODO is gone.
+- The fix confirmation window shows the Greenlight command as plain text (no stray backticks).
+
+### Added
+- Tests with Greenlight 0.2.0's own example output and with a site just upgraded from 0.1.x (alert features off).
+- README: the web app's Greenlight items, the version badge and the fix window, with screenshots.
+
 ## 0.2.0 — 2026-10-22
 
 **Requires Greenlight v0.2.0 or newer** for the Greenlight security items. With an older Greenlight, or none,
@@ -29,9 +42,7 @@ the items say so ("update Greenlight to v0.2.0+", "not installed"); everything e
 - The app's version next to its name in the header, in `npm start`'s output and in `wpeqa help`.
 
 ### Note
-- Greenlight's README documents `wp greenlight set <key> <value>` but not yet the security setting keys. The fix
-  assumes each key is the feature's name in `wp greenlight security` (marked TODO in `lib/fixers.mjs`). If a key
-  differs, that fix fails with "Unknown setting …" and changes nothing else.
+- At release, Greenlight's security setting keys weren't documented yet; 0.2.1 confirms them.
 
 ## 0.1.0
 

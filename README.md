@@ -3,7 +3,7 @@
 A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, each with a
 **Run Tool** button that runs the automatic checks and fills the checklist in.
 
-**Version 0.2.0** (shown next to the app's name in the header; see [CHANGELOG.md](CHANGELOG.md)).
+**Version 0.2.1** (shown next to the app's name in the header; see [CHANGELOG.md](CHANGELOG.md)).
 
 **New in 0.2.0: security checks.** On sites running [Greenlight](https://github.com/yoborj/greenlight) **v0.2.0 or
 newer**, Run Tool reads Greenlight's security setup and alerts:
@@ -157,7 +157,29 @@ What the app does with each Greenlight feature:
 | XML-RPC off | Turns off xmlrpc.php | Shown, optional |
 | Application passwords off | Turns off WordPress application passwords | Shown, optional |
 
-The CLI command also lists Greenlight's script baseline and trusted embed domains.
+The CLI command also lists Greenlight's script baseline and trusted embed domains. Checked against Greenlight 0.2.0
+as released: its `wp greenlight set` keys are these feature names, and its JSON is the shape this app reads.
+
+### In the web app
+
+- **Header:** the app's version (e.g. `v0.2.1`) sits next to its name; hover it to see the minimum Greenlight
+  version it reads.
+- **QA — Before Launch → Security and Updates → Greenlight security hardening:** Failed while a recommended
+  feature is off. **N details** lists every feature as ✓ on / ✕ off, then HSTS and CSP for information and the
+  optional ones. **How to fix** is tagged **App can fix**: Approve it and **Apply fixes** turns the off features on.
+- **QA — After Launch → Security and Updates → No open Greenlight security alerts:** one line per open alert,
+  high first: severity · type · time (UTC) · message · page link (and post id). **How to fix** says what to check for
+  each kind of alert.
+- **Apply approved fixes:** the confirmation window lists exactly which Greenlight features will be turned on,
+  after the backup and before the re-check.
+- When Greenlight isn't installed, is inactive or too old, the item says so in its summary and **How to fix** says
+  what to do (install, activate, or update to v0.2.0+); it has no automatic fix until Greenlight can answer.
+
+![Before Launch: Greenlight security hardening failed with two features off, the per-feature details and How to fix tagged App can fix; the version badge in the header](docs/qa-greenlight-hardening-2026-10-22.png)
+
+![After Launch: an open high-severity script-drift alert fails No open Greenlight security alerts](docs/qa-greenlight-alerts-2026-10-22.png)
+
+![Apply approved fixes: backup first, then turn on the two Greenlight features that are off, then re-check](docs/qa-greenlight-fix-2026-10-22.png)
 
 When Greenlight can't answer, the item says why instead: **not installed**, **installed but inactive**,
 **update Greenlight to v0.2.0+** (older versions don't have the command), **unsupported schema** (a newer
