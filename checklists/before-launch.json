@@ -478,6 +478,13 @@
      "description": "The WP Activity Log plugin is installed. https://wordpress.org/plugins/wp-security-audit-log/",
      "owner": "Tech Lead",
      "check": "wp.activityLog"
+    },
+    {
+     "id": "security-and-updates--greenlight-security-hardening",
+     "title": "Greenlight security hardening",
+     "description": "Greenlight's recommended security features are on: security headers, hide usernames, file editor off, email obfuscation, admin-change alerts, script-drift alerts, core-file check and content check. HSTS and CSP (report-only) are listed for information.",
+     "owner": "Claude",
+     "check": "gl.hardening"
     }
    ]
   },

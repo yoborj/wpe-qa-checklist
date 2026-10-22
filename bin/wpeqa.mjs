@@ -10,10 +10,14 @@ import { checkJob, fixJob, legacyJob } from '../lib/jobs.mjs';
 import { LEGACY_STATUSES, legacyEffective, legacyRows, setLegacyRow } from '../lib/legacy.mjs';
 import fs from 'node:fs';
 import { planFixes } from '../lib/fixers.mjs';
-import { report } from '../lib/report.mjs';
+import { report, tabGreenlight } from '../lib/report.mjs';
+import { readGreenlight, greenlightLine, glSummary, FEATURES, RECOMMENDED, INFORMATIONAL, sortedAlerts, alertLine, GREENLIGHT_MIN_VERSION } from '../lib/greenlight.mjs';
+import { liveSite } from '../lib/live.mjs';
 import { claudeStatus, RULES } from '../lib/claude.mjs';
 
-const HELP = `WPE QA Checklist — command line
+const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+
+const HELP = `WPE QA Checklist ${VERSION} — command line
 
   sites                                  List saved sites
   add <staging-url> [--prod LIVE-URL] [--name N] [--install I] [--admin-email E] [--reference OLD-URL] [--max-pages N]
@@ -40,6 +44,8 @@ const HELP = `WPE QA Checklist — command line
   urls <site> approve --all-ready        Approve every imported redirect marked Ready
   urls <site> plan                       The redirects "Apply" would add to the Redirection plugin
   urls <site> apply --yes                Backup, install/set up Redirection if needed, add the approved 301s, verify
+  greenlight <site>                      Greenlight's security status on staging and production: version, features,
+                                         open alerts (read-only; needs Greenlight v${GREENLIGHT_MIN_VERSION}+)
   rules <site>                           The production rules for fixing this site by hand
   serve                                  Start the web app at http://localhost:4646
 
@@ -69,10 +75,11 @@ function status(s, tab) {
   const st = getState(s.id).tabs[tab] || { items: {}, runs: [] };
   const list = items(tab).map(i => ({ id: i.id, title: i.title, section: i.section, auto: !!i.check, ...(st.items[i.id] || {}), status: st.items[i.id]?.status || 'todo' }));
   const counts = list.reduce((c, i) => (c[i.status] = (c[i.status] || 0) + 1, c), {});
-  return { tab, title: templates()[tab].title, lastRun: st.runs?.[0]?.finishedAt || null, counts, attention: list.filter(i => ['fail', 'warn'].includes(i.status)).map(i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, note: i.note || '' })) };
+  return { tab, title: templates()[tab].title, lastRun: st.runs?.[0]?.finishedAt || null, counts, greenlight: tabGreenlight(templates()[tab], st), attention: list.filter(i => ['fail', 'warn'].includes(i.status)).map(i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, note: i.note || '' })) };
 }
 const printStatus = r => {
   console.log(`\n${r.title}: ${Object.entries(r.counts).map(([k, v]) => `${v} ${k}`).join(' · ')}${r.lastRun ? ` (last run ${new Date(r.lastRun).toLocaleString()})` : ' (not run yet)'}`);
+  if (r.greenlight) console.log(`  ${greenlightLine(r.greenlight)}`);
   for (const a of r.attention) {
     console.log(`  ${a.status === 'fail' ? 'FAIL' : 'LOOK'}  ${a.title}  [${a.id}]${a.decision ? `  fix ${a.decision}d` : ''}${a.fix ? `  (${a.fix})` : ''}`);
     if (a.summary) console.log(`        ${a.summary}`);
@@ -173,6 +180,24 @@ try {
       if (sub === 'plan') { const p = planRedirects(s.id); if (json) { out(null, p); break; } console.log(p.todo.length ? `Would add ${p.todo.length} redirect(s) to the Redirection plugin on ${s.url} (backup first):` : 'Nothing approved yet.'); p.todo.forEach(t => console.log(t.choice === 'keep' ? `  KEEP ${t.from}  (move ${t.to} back to it; 301 ${t.to} → ${t.from})` : t.gone ? `  ${t.code}  ${t.from}  (gone; from the old site)` : `  ${t.code || 301}  ${t.from} → ${t.to}${t.legacy ? '  (from the old site)' : ''}`)); p.skipped.forEach(r => console.log(`  skipped ${r.oldPath}: ${r.why}`)); break; }
       if (sub === 'apply') { if (flags.yes !== true) die('This adds redirects on the site. Show the plan (`urls <site> plan`), get the site owner\'s OK, then re-run with --yes.'); const r = await fixJob({ site: s, tab: URLS_TAB }); out(`\nRedirects: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}`, r); break; }
       die('Usage: urls <site> [run|status|import <file>|forget <name>|approve|decline|choose|set|plan|apply --yes]');
+    }
+    case 'greenlight': {
+      const s = site(rest[0]);
+      const targets = [[s.prodUrl ? 'staging' : 'site', s.install, s.url], ...(s.prodUrl && liveSite(s).install ? [['production', liveSite(s).install, s.prodUrl]] : [])];
+      if (!targets[0][1]) die('This site has no WP Engine install, so Greenlight can\'t be read.');
+      const seen = new Map(); const res = [];
+      for (const [where, install, url] of targets) { if (!seen.has(install)) seen.set(install, await readGreenlight(install)); res.push({ where, url, ...seen.get(install) }); }
+      if (json) { out(null, res); break; }
+      for (const g of res) {
+        console.log(`\n${g.where[0].toUpperCase() + g.where.slice(1)} · ${g.url}\n  ${greenlightLine(glSummary(g))}`);
+        if (g.state !== 'ok') continue;
+        for (const k of Object.keys(FEATURES)) console.log(`    ${g.features[k] ? '✓' : '✕'} ${FEATURES[k].padEnd(26)}${RECOMMENDED.includes(k) ? (g.features[k] ? '' : 'recommended') : INFORMATIONAL.includes(k) ? 'for information' : ''}`);
+        if (g.alerts.length) { console.log('  Open alerts:'); sortedAlerts(g).forEach(a => console.log(`    ${alertLine(a)}`)); }
+        if (g.scriptBaseline.length) console.log(`  Script baseline: ${g.scriptBaseline.join(', ')}`);
+        if (g.trustedEmbedDomains.length) console.log(`  Trusted embeds: ${g.trustedEmbedDomains.join(', ')}`);
+        g.notes.forEach(n => console.log(`  note: ${n}`));
+      }
+      break;
     }
     case 'rules': { const s = site(rest[0]); if (!s.install) die('This site has no WP Engine install.'); console.log(RULES(s)); break; }
     case 'serve': { spawn(process.execPath, [path.join(ROOT, 'server.mjs')], { stdio: 'inherit' }); break; }

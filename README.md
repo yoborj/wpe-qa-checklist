@@ -1,14 +1,18 @@
 # WPE QA Checklist
 
 A local web app for QA on **WP Engine** WordPress sites. One tab per checklist, each with a
-**Run Tool** button that runs the automatic checks and fills the checklist in:
+**Run Tool** button that runs the automatic checks and fills the checklist in.
+
+**Version 0.2.0** (shown next to the app's name in the header; see [CHANGELOG.md](CHANGELOG.md)). Reads the
+security status of [Greenlight](https://github.com/yoborj/greenlight) **v0.2.0 or newer** (see
+[Greenlight security](#greenlight-security)).
 
 | Tab | What Run Tool does |
 |---|---|
 | **QA Swarm** | Crawls every sitemap page on desktop and phone: HTTP status, internal links, accessibility/SEO basics, 375 px fit, phone menu, screenshots, and (with a reference site) content completeness. Scores each page and the whole site, like the `qa-swarm` skill. |
 | **WP Site Audit** | The `wp-site-audit` skill's checks: collapsed and empty links, asset URLs used as links, duplicate images, junk posts and slug collisions, exposed emails, mu-plugins, long H1s, alt text, phone formats, CPT featured images, Yoast title suffix, placeholder leaks, page-local styles. |
-| **QA — Before Launch** | The Audit Sheet's "QA — Before Launch" tab. 89 of 132 items are checked automatically (WordPress settings, plugins, updates, login URL, 404, alt text, tap-to-call phones, headings, tap targets, consent, security headers, schema, Lighthouse…). The rest are manual. |
-| **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 34 of 48 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
+| **QA — Before Launch** | The Audit Sheet's "QA — Before Launch" tab. 90 of 133 items are checked automatically (WordPress settings, plugins, updates, login URL, Greenlight security hardening, 404, alt text, tap-to-call phones, headings, tap targets, consent, security headers, schema, Lighthouse…). The rest are manual. |
+| **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 35 of 49 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, open Greenlight security alerts, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
 | **Old → New URLs** | Tests every page of the old site on the new site and proposes the redirects, and carries over the old site's own redirects from its export file; approved ones are added to the Redirection plugin for you (see below). |
 
 Every failed or flagged item also shows a **Suggested fix** (plain WordPress steps; tagged **App can
@@ -116,6 +120,33 @@ panel aren't in any export file, so check those by hand. From the command line:
 
 ![Old site's redirects: two imported files, each redirect with its status, where it goes on the new site, and Approve / Decline](docs/qa-old-redirects-2026-10-15.png)
 
+## Greenlight security
+
+Sites that run [Greenlight](https://github.com/yoborj/greenlight) v0.2.0+ report their security setup through
+`wp greenlight security --format=json`. Run Tool reads it over SSH (one short call per run, on the install that tab
+checks: staging for Before Launch, production for After Launch):
+
+| Tab | Item | Result |
+|---|---|---|
+| **QA — Before Launch** → Security and Updates | **Greenlight security hardening** | Fails while any recommended feature is off: security headers, hide usernames, file editor off, email obfuscation, admin-change alerts, script-drift alerts, core-file check, content check. HSTS and CSP (report-only) are listed for information only. **App can fix**: approve it and the fix run turns the off features on with `wp greenlight set <feature> 1` (one short command each, after the usual backup), then re-checks. |
+| **QA — After Launch** → Security and Updates | **No open Greenlight security alerts** | Open alerts grouped by severity, high first. Any **high** alert fails; medium and low need a look. |
+
+When Greenlight can't answer, the item says why instead: **not installed**, **installed but inactive**,
+**update Greenlight to v0.2.0+** (older versions don't have the command), **unsupported schema** (a newer
+Greenlight than this app reads; update the app), or output that isn't valid JSON. None of these stop the run.
+
+The **HTTP Security Headers** (Before Launch) and **Exposed email addresses** (WP Site Audit) items name the
+matching Greenlight feature in their suggested fix, and say whether it is on for that site.
+
+The Markdown **Report** has a **Security:** line with the Greenlight version, how many recommended features are on and
+the open alerts. From the command line, `node bin/wpeqa.mjs greenlight <site>` prints the full status for
+staging and production (read-only), and `status` shows the same one-liner per tab.
+
+The minimum Greenlight version is `GREENLIGHT_MIN_VERSION` in `lib/greenlight.mjs`. `npm test` checks the
+parser, the items, the fix and the report against saved Greenlight output in `test/fixtures/greenlight/` (valid,
+old Greenlight, not installed, inactive, bad JSON, schema 2); it never connects to a site. To try the app
+against one of those files instead of SSH, start it with `WPEQA_GREENLIGHT_FIXTURE=test/fixtures/greenlight/valid.txt`.
+
 ## Fixing approved items
 
 1. **Run Tool** finds the issues (read-only).
@@ -141,7 +172,7 @@ Automatic fixes (everything else goes to the fix request): turn comments off · 
 visibility on/off · rename "Uncategorized" · trash Hello World / Sample Page · permalinks to post
 name · install WP Activity Log · install WPS Hide Login with the slug from the note · update plugins ·
 update WordPress core · set the admin email · replace the staging domain in the database
-(`wp search-replace`, dry run first, GUIDs untouched). They live in `lib/fixers.mjs`.
+(`wp search-replace`, dry run first, GUIDs untouched) · turn on Greenlight's recommended security features. They live in `lib/fixers.mjs`.
 
 Plain **Run Tool** runs never change the site, so they don't take a backup.
 
@@ -240,14 +271,16 @@ This rewrites `checklists/before-launch.json` and `checklists/after-launch.json`
 "QA — Before Launch" and "QA — After Launch" tabs, turning your `config/agency.json` values back
 into placeholders and people's names into their roles, so nothing agency-specific is committed. Which rows are automatic is set by the `AUTO`
 map in `scripts/import-sheet.py`; a renamed row there stops the import with an error rather than
-silently losing its check. Saved ticks are keyed by section + title, so renaming a row starts it
+silently losing its check. Items the app adds that aren't sheet rows (the Greenlight items) are in its `EXTRA` map
+and are added back on every import. Saved ticks are keyed by section + title, so renaming a row starts it
 fresh.
 
 ## Adding a check
 
 1. Write the function in `lib/checks.mjs` (`CHECKS`, `SWARM` or `AUDIT`) or `lib/checks-more.mjs` (`MORE`). It gets `ctx` with
    `ctx.facts()` (WordPress data), `ctx.pages()` (desktop snapshot of every page),
-   `ctx.mobilePages()`, `ctx.homeSnap()`, `ctx.linkCheck()`, `ctx.lighthouse()` and `ctx.home`, and
+   `ctx.mobilePages()`, `ctx.homeSnap()`, `ctx.linkCheck()`, `ctx.lighthouse()`, `ctx.greenlight()` (Greenlight's
+   security status) and `ctx.home`, and
    returns `{ status: 'pass' | 'fail' | 'warn' | 'na', summary, details }`.
 2. Point the item at it: the `AUTO` map in `scripts/import-sheet.py` for sheet rows, or the
    `check` field in `checklists/qa-swarm.json` / `wp-site-audit.json`.
@@ -260,6 +293,8 @@ lib/wpe.mjs             SSH + WP-CLI facts (read-only)
 lib/crawl.mjs           sitemap discovery and Chrome page snapshots
 lib/checks.mjs          automatic checks (core, QA Swarm, WP Site Audit, Tailwind)
 lib/checks-more.mjs     more automatic checks (navigation, phone layout, forms, accessibility, migration, hosting, builders)
+lib/checks-greenlight.mjs  Greenlight security hardening and alerts
+lib/greenlight.mjs      reads `wp greenlight security` over SSH; version and schema checks (read-only)
 lib/redirects.mjs       Old → New URLs: scan, keep-or-new choice, Redirection plugin apply
 lib/legacy.mjs          the old site's own redirects: export-file import, mapping onto the new site
 lib/live.mjs            QA — After Launch gate: production checks and the live confirmation
@@ -273,5 +308,6 @@ lib/store.mjs           sites, checklist state, run history (data/)
 lib/report.mjs          Markdown report
 checklists/*.json       the four checklists
 scripts/import-sheet.py Audit Sheet → checklists
+test/                   `npm test`: Greenlight checks against saved output (no site needed)
 public/                 the app (no build step)
 ```

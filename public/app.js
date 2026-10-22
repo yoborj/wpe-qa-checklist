@@ -36,6 +36,7 @@ let secSel = (() => { try { return JSON.parse(store.get('wpeqa.sec') || '{}'); }
 
 async function boot() {
   [templates, config] = await Promise.all([api('/checklists'), api('/config')]);
+  if (config.version) { $('appVersion').textContent = 'v' + config.version; $('appVersion').title = `Reads Greenlight v${config.greenlightMin}+ security status`; }
   await loadSites(store.get('wpeqa.site'));
 }
 

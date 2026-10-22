@@ -39,6 +39,8 @@ button, input, select { font: inherit; }
 }
 .brand { display: flex; align-items: center; gap: 12px; color: var(--ink); font-size: 18px; letter-spacing: -.01em; }
 .brand b { font-weight: 800; }
+.brand .ver { margin-left: -4px; padding: 1px 8px; border-radius: 999px; background: var(--na-soft); color: var(--faint); font: 600 12px/1.6 var(--mono); }
+.brand .ver:empty { display: none; }
 .mark {
   display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #fff; font-weight: 800; font-size: 17px;
   background: linear-gradient(135deg, var(--btn-a), var(--btn-b)); box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent) 70%, transparent);

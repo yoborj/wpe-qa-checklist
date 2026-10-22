@@ -1,0 +1,9 @@
+GL_PLUGIN active 0.3.0
+<<<GL_JSON>>>
+{"greenlight_version":"0.3.0","schema":2,"features":{},"alerts":[]}
+
+<<</GL_JSON>>>
+GL_EXIT 0
+<<<GL_ERR>>>
+
+<<</GL_ERR>>>

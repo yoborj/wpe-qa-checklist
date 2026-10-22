@@ -1,12 +1,13 @@
 {
   "name": "wpe-qa-checklist",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Local QA checklist app for WP Engine WordPress sites: QA Swarm, WP Site Audit, Before Launch and After Launch, each with a Run Tool button.",
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server.mjs",
+    "test": "node --test test/greenlight.test.mjs",
     "import-sheet": "python3 scripts/import-sheet.py"
   },
   "dependencies": {

@@ -130,6 +130,13 @@
      "description": "SSL is installed correctly and the site is served over HTTPS without mixed content.",
      "owner": "Claude",
      "check": "http.ssl"
+    },
+    {
+     "id": "security-and-updates--greenlight-security-alerts",
+     "title": "No open Greenlight security alerts",
+     "description": "Greenlight on the live site has no open alerts (admin changes, script drift, core files, content). High-severity alerts fail; medium and low need a look.",
+     "owner": "Claude",
+     "check": "gl.alerts"
     }
    ]
   },

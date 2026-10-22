@@ -13,9 +13,11 @@ import { planFixes } from './lib/fixers.mjs';
 import { report } from './lib/report.mjs';
 import { URLS_TAB, setUrlRow, recheckKeep, planRedirects, effective } from './lib/redirects.mjs';
 import { liveChecks, confirmLive } from './lib/live.mjs';
+import { GREENLIGHT_MIN_VERSION } from './lib/greenlight.mjs';
 const JOB_TABS = [...TABS, URLS_TAB];
 
 const PORT = +process.env.PORT || 4646;
+const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 const PUBLIC = path.join(ROOT, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8', '.md': 'text/markdown; charset=utf-8' };
 
@@ -60,7 +62,7 @@ const server = http.createServer(async (req, res) => {
     if (p[0] !== 'api') return send(res, 404, { error: 'Not found' });
 
     if (req.method === 'GET' && p[1] === 'checklists') return send(res, 200, templates());
-    if (req.method === 'GET' && p[1] === 'config') { const a = agency(); return send(res, 200, { adminEmail: a.adminEmail || '', configured: a._source === 'agency.json' }); }
+    if (req.method === 'GET' && p[1] === 'config') { const a = agency(); return send(res, 200, { adminEmail: a.adminEmail || '', configured: a._source === 'agency.json', version: VERSION, greenlightMin: GREENLIGHT_MIN_VERSION }); }
     if (req.method === 'GET' && p[1] === 'sites' && !p[2]) return send(res, 200, listSites());
     if (req.method === 'POST' && p[1] === 'sites' && !p[2]) return send(res, 200, await saveSite(await body(req)));
 
@@ -113,4 +115,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`WPE QA Checklist → http://localhost:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => console.log(`WPE QA Checklist ${VERSION} → http://localhost:${PORT}`));

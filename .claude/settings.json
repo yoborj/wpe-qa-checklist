@@ -12,6 +12,8 @@
       "Bash(node bin/wpeqa.mjs approve:*)",
       "Bash(node bin/wpeqa.mjs decline:*)",
       "Bash(node bin/wpeqa.mjs note:*)",
+      "Bash(node bin/wpeqa.mjs greenlight:*)",
+      "Bash(npm test)",
       "Bash(node bin/wpeqa.mjs serve:*)",
       "Bash(npm install)",
       "Bash(npm start)",

@@ -155,6 +155,32 @@ AUTO = {
     },
 }
 
+# Items the app adds that aren't rows in the sheet, appended to the section with that id on every import.
+EXTRA = {
+    "before-launch": {
+        "security-and-updates": [
+            {
+                "id": "security-and-updates--greenlight-security-hardening",
+                "title": "Greenlight security hardening",
+                "description": "Greenlight's recommended security features are on: security headers, hide usernames, file editor off, email obfuscation, admin-change alerts, script-drift alerts, core-file check and content check. HSTS and CSP (report-only) are listed for information.",
+                "owner": "Claude",
+                "check": "gl.hardening"
+            }
+        ]
+    },
+    "after-launch": {
+        "security-and-updates": [
+            {
+                "id": "security-and-updates--greenlight-security-alerts",
+                "title": "No open Greenlight security alerts",
+                "description": "Greenlight on the live site has no open alerts (admin changes, script drift, core files, content). High-severity alerts fail; medium and low need a look.",
+                "owner": "Claude",
+                "check": "gl.alerts"
+            }
+        ]
+    }
+}
+
 # Sections that only apply when the site uses that builder.
 APPLIES_IF = {'Elementor': 'elementor', 'YOOtheme': 'yootheme', 'Tailwind/Custom': 'tailwind'}
 
@@ -216,6 +242,11 @@ def build(wb, key):
             'owner': generic_owner(who),
             'check': AUTO[key].get(task),
         })
+    for sec_id, extra in EXTRA.get(key, {}).items():
+        sec = next((s for s in sections if s['id'] == sec_id), None)
+        if sec is None:
+            sys.exit(f'{key}: EXTRA section {sec_id!r} not found in sheet')
+        sec['items'].extend(extra)
     unmapped = set(AUTO[key]) - {it['title'] for s in sections for it in s['items']}
     if unmapped:
         sys.exit(f'{key}: AUTO titles not found in sheet: {sorted(unmapped)}')

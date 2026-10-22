@@ -76,7 +76,7 @@ After Launch until then.
 ## Rules that always apply
 
 - These are **production** sites. Read-only commands (`sites`, `add`, `run`, `status`, `report`,
-  `plan`, `rules`, `approve`, `decline`, `note`, and `urls` without `apply`) are fine to run. **Never pass `--yes` to `fix` or `urls … apply`, and
+  `plan`, `rules`, `approve`, `decline`, `note`, `greenlight`, and `urls` without `apply`) are fine to run. **Never pass `--yes` to `fix` or `urls … apply`, and
   never change a site by hand, without the person's explicit approval in this conversation** for
   those specific changes on that URL.
 - Never overwrite someone else's edits: compare the server file's md5 with your copy before uploading.
@@ -91,5 +91,7 @@ After Launch until then.
 - `data/` (git-ignored): saved sites, checklist state, every run's log, results, screenshots,
   Lighthouse reports, fix requests and Claude transcripts.
 - Backups: on the server in `~/sites/<install>/_wpeprivate/wpeqa-backups/<run>/`.
+- Greenlight security status: `lib/greenlight.mjs` (minimum version `GREENLIGHT_MIN_VERSION`), checks in
+  `lib/checks-greenlight.mjs`, tests with saved output: `npm test`.
 - Checks: `lib/checks.mjs` · automatic fixes: `lib/fixers.mjs` · checklists: `checklists/*.json`
   (Before/After Launch come from the Audit Sheet via `npm run import-sheet -- <xlsx>`).

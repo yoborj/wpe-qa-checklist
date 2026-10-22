@@ -1,0 +1,9 @@
+GL_PLUGIN active 0.1.1
+<<<GL_JSON>>>
+
+
+<<</GL_JSON>>>
+GL_EXIT 1
+<<<GL_ERR>>>
+Error: 'security' is not a registered subcommand of 'greenlight'. See 'wp help greenlight' for available subcommands.
+<<</GL_ERR>>>

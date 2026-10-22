@@ -1,0 +1,9 @@
+GL_PLUGIN active 0.2.0
+<<<GL_JSON>>>
+{"greenlight_version":"0.2.0","schema":1,"features":{"headers":true,"hsts":false,"csp_report_only":true,"hide_usernames":false,"xmlrpc_off":true,"file_editor_off":true,"email_obfuscation":false,"app_passwords_off":false,"admin_alerts":true,"script_drift":true,"core_file_check":true,"content_check":true},"script_baseline":["www.googletagmanager.com","static.cloudflareinsights.com"],"trusted_embed_domains":["www.youtube.com"],"alerts":[{"id":"a1","type":"script_drift","severity":"medium","time":"2026-10-21T09:15:00Z","message":"New script domain: cdn.example-widget.com","url":"https://example.com/contact/","post_id":null},{"id":"a2","type":"admin_change","severity":"high","time":"2026-10-20T14:03:00Z","message":"New administrator: jdoe (jdoe@example.com)","url":null,"post_id":null},{"id":"a3","type":"content_check","severity":"low","time":"2026-10-19T08:00:00Z","message":"Hidden link added to a post","url":"https://example.com/blog/hello/","post_id":42}]}
+
+<<</GL_JSON>>>
+GL_EXIT 0
+<<<GL_ERR>>>
+
+<<</GL_ERR>>>
