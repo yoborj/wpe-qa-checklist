@@ -3,7 +3,7 @@
 All notable changes to WPE QA Checklist. Versions follow [semantic versioning](https://semver.org/); each one is
 tagged `vX.Y.Z` with a GitHub release.
 
-## 0.2.1 — 2026-10-22
+## 0.2.1 — 2026-11-03
 
 Still requires **Greenlight v0.2.0 or newer**.
 
