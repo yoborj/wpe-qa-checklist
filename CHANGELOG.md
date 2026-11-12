@@ -25,6 +25,9 @@ tagged `vX.Y.Z` with a GitHub release.
   (`test/fixers.test.mjs`).
 
 ### Fixed
+- An item's fix pill kept showing the last fix run's outcome after the item passed (e.g. "Claude has a question ·
+  answer above" on a done item). An item that passes now reads **Passes now**, and a question from before the checks
+  ran again reads **Claude asked earlier**.
 - A headless Claude fix run could stop to ask for a go-ahead (it read the repository's interactive `CLAUDE.md`
   workflow), end without fixing anything, and leave its question only in the run log. It's now told that the
   approval is already given and to report a `question` per item instead; a run that still ends on a question is

@@ -26,6 +26,16 @@ const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 6
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
 const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request', question: 'Claude asked you' };
 const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request', question: 'Claude has a question · answer above' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
+// The fix pill shows the last fix run's outcome, but the current check result wins: an item that passes now reads
+// "Passes now" (it may have been fixed by another item's fix, by hand, or after a later re-check), and a question
+// from before the checks ran again is no longer waiting for an answer (fix.toolAt is the finding that run worked on).
+function fixPill(s) {
+  const f = s.fix; if (!f) return null;
+  const stale = f.toolAt !== (s.tool?.at || null);
+  if (s.status === 'pass' && f.state !== 'verified') return { cls: 'verified', text: 'Passes now', title: `The check passes now. Last fix run: ${fixLabel(f)}.` };
+  if (stale && f.state === 'question') return { cls: 'manual', text: 'Claude asked earlier', title: `Checks ran again since. Claude asked: ${f.question || ''}` };
+  return { cls: f.state, text: fixLabel(f), title: f.reason || f.action || '' };
+}
 const copy = async (text, btn) => { try { await navigator.clipboard.writeText(text); const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500); } catch { prompt('Copy this:', text); } };
 const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual', 'question'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
 // Approved items an earlier fix run left in a fix request (same finding): "Retry fix request" runs them again.
@@ -179,7 +189,7 @@ function itemRow(it) {
         el('img', { src: sh.file, alt: `${sh.label} on ${sh.page}`, loading: 'lazy', 'data-kind': sh.kind || 'crop' }),
         el('span', { text: `${sh.page} · ${sh.label}${sh.found ? '' : ' (not pinpointed; page view)'}` })))) : null,
       s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'How to fix' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
-    el('div', { class: 'item-side' }, seg, src, s.fix ? el('span', { class: `fixstate fs-${s.fix.state}`, title: s.fix.reason || s.fix.action || '', text: fixLabel(s.fix) }) : null),
+    el('div', { class: 'item-side' }, seg, src, (p => p ? el('span', { class: `fixstate fs-${p.cls}`, title: p.title, text: p.text }) : null)(fixPill(s))),
     el('div', { class: 'item-extra' }, note, fix));
 }
 
