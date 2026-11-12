@@ -124,8 +124,13 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
 .c-pass { background: var(--pass-soft); color: var(--pass); } .c-fail { background: var(--fail-soft); color: var(--fail); } .c-warn { background: var(--warn-soft); color: var(--warn); }
 .c-na { background: var(--na-soft); color: var(--na); } .c-todo { background: var(--na-soft); color: var(--todo); }
 /* Decided items: approved (in progress), done (fixed), declined. Click to open their view. */
-button.count { font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-button.count:hover { border-color: currentColor; }
+/* The count tiles are the filters: click one to show only those items, click it again (or All) to show everything. */
+button.count { font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, opacity .15s; }
+button.count:hover:not(:disabled) { border-color: currentColor; }
+button.count[aria-pressed="true"] { border-color: currentColor; box-shadow: 0 0 0 2px currentColor inset; }
+button.count:disabled { cursor: default; opacity: .55; }
+.c-all { background: var(--surface); border-color: var(--line-2); color: var(--ink); }
+.c-manual { background: var(--surface-2); border-color: var(--line); color: var(--body); }
 .c-approved { background: var(--accent-soft); color: var(--accent); }
 .c-done { background: var(--pass-soft); color: var(--pass); }
 .c-declined { background: var(--surface); border-color: var(--line-2); color: var(--faint); }
@@ -178,11 +183,15 @@ button.count:hover { border-color: currentColor; }
 .fix button:hover { border-color: var(--faint); }
 .fix button[aria-pressed="true"][data-d="approve"] { background: var(--pass); border-color: var(--pass); color: #fff; }
 .fix button[aria-pressed="true"][data-d="decline"] { background: var(--fail); border-color: var(--fail); color: #fff; }
+.fix button[data-d="confirm"] { border-color: var(--pass); color: var(--pass); }
+.fix button[aria-pressed="true"][data-d="confirm"] { background: var(--pass-soft); border-color: var(--pass); color: var(--pass); }
 .hidden-by-filter { display: none; }
 .fixstate { font-size: 13.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 .fs-verified { background: var(--pass-soft); color: var(--pass); } .fs-applied { background: var(--warn-soft); color: var(--warn); }
 .fs-failed { background: var(--fail-soft); color: var(--fail); } .fs-manual { background: var(--accent-soft); color: var(--accent); }
 .fs-question { background: var(--warn-soft); color: var(--warn); }
+.fs-approved { background: var(--accent-soft); color: var(--accent); } .fs-done { background: var(--pass-soft); color: var(--pass); }
+.fs-declined { background: var(--surface-2); color: var(--faint); border: 1px solid var(--line-2); }
 
 /* How to fix */
 .item-suggest {

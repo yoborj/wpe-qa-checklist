@@ -102,7 +102,7 @@
     {
      "id": "nap--emails",
      "title": "Exposed email addresses reviewed",
-     "description": "Every email address shown on the site is intended (lists each address and where it appears).",
+     "description": "Every email address shown on the site is a working mailto link and is meant to be public (lists each address and where it appears).",
      "owner": "Claude",
      "check": "audit.emails"
     },

@@ -6,7 +6,10 @@ tagged `vX.Y.Z` with a GitHub release.
 ## Unreleased
 
 ### Added
-- **Approved / Done / Declined views.** Decided items leave the main list, the count tiles and the tab's red badge, so
+- **Confirm fix.** For an approved fix that's done but that its check can't verify, **Confirm fix** on the item
+  moves it to Done (**Done · confirmed by you**) until a later run finds something different. Command line:
+  `confirm-fix <site> <tab> <item-id…> [--undo]`. Confirmed items are left out of Apply fixes and retries.
+- **Approved, not done / Done / Declined views.** Decided items leave the main list, the count tiles and the tab's red badge, so
   **All** and **Needs attention** show only what still needs a decision. Each checklist gets **Approved (N)** (fix in
   progress), **Done (N)** (approved and passing now) and **Declined (N)**, as filter buttons and clickable count tiles.
   `status` groups items the same way, and `approve --all-failing` only approves items not decided yet (it no longer
@@ -24,7 +27,26 @@ tagged `vX.Y.Z` with a GitHub release.
 - Tests for reading Claude's verdicts and questions (`test/claude.test.mjs`) and for which items a fix run plans
   (`test/fixers.test.mjs`).
 
+### Changed
+- **The count tiles are the filters.** The All / Needs attention / Manual / Approved / Done / Declined buttons are gone:
+  click a count tile (new **all** and **manual** tiles included) to show only those items; click it again or **all**
+  to show everything. The Old → New URLs tiles filter its page list the same way.
+- **QA — Before Launch → Search page** verifies itself: it passes when the site has a search form, or when it has
+  none and WordPress's `/?s=` results page is turned off (redirects or answers 404/410). It needs a look only when
+  there's no form but `/?s=` still shows results.
+- **WP Site Audit → Exposed email addresses reviewed** is now verified automatically: it passes when every email
+  shown on the site is a working mailto link (Greenlight-encoded links count) and still lists each address with its
+  pages, so you can see what's public. It needs a look only for addresses shown as plain text, with a screenshot of
+  each. Before, it flagged any visible email, so it could never pass once emails were meant to be there.
+
 ### Fixed
+- A headless Claude fix run could start the 2-minute wait in the background, schedule a wake-up and end without
+  reporting, so items it had fixed showed as skipped. Headless runs are now told never to sleep, background or schedule,
+  and the app does the wait itself: after Claude reports a fix (or stops without reporting), it waits 2 minutes, clears
+  every cache and re-runs the checks. `rules <site>` (interactive) keeps the wait and cache steps.
+- Fix pills say where each item stands: what's happening with an approved fix (not applied yet, in a fix request,
+  skipped or unfinished by Claude, waiting for your answer, applied but still flagged, failed), how a done item got
+  there (fixed by the app or by Claude, including fixes a later re-check confirmed; passes now), or **Declined · won’t fix**.
 - An item's fix pill kept showing the last fix run's outcome after the item passed (e.g. "Claude has a question ·
   answer above" on a done item). An item that passes now reads **Passes now**, and a question from before the checks
   ran again reads **Claude asked earlier**.

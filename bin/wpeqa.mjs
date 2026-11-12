@@ -28,6 +28,9 @@ const HELP = `WPE QA Checklist ${VERSION} — command line
   approve <site> <tab> <item-id…|--all-failing> [--note TEXT]
   decline <site> <tab> <item-id…>        Record fix decisions, as the Approve/Decline buttons do
   note <site> <tab> <item-id> <text>     Save a note on an item (e.g. the login slug for Hide the login URL)
+  confirm-fix <site> <tab> <item-id…> [--undo]
+                                         Mark approved fixes as done when the check can't verify them (moves them to
+                                         Done until a later run finds something different). Only with the person's OK.
   plan <site> <tab>                      What "Apply approved fixes" would do: automatic fixes and the rest
   fix <site> <tab> --yes [--claude] [--retry]
                                          Apply approved fixes: backup first, automatic fixes, verify.
@@ -60,7 +63,7 @@ const argv = process.argv.slice(2);
 const flags = {}; const pos = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
-  if (a.startsWith('--')) { const k = a.slice(2); const v = argv[i + 1] && !argv[i + 1].startsWith('--') && !['yes', 'claude', 'retry', 'json', 'all-failing'].includes(k) ? argv[++i] : true; flags[k] = v; }
+  if (a.startsWith('--')) { const k = a.slice(2); const v = argv[i + 1] && !argv[i + 1].startsWith('--') && !['yes', 'claude', 'retry', 'undo', 'json', 'all-failing'].includes(k) ? argv[++i] : true; flags[k] = v; }
   else pos.push(a);
 }
 const json = !!flags.json;
@@ -84,7 +87,7 @@ function status(s, tab) {
   const st = getState(s.id).tabs[tab] || { items: {}, runs: [] };
   const list = items(tab).map(i => ({ id: i.id, title: i.title, section: i.section, auto: !!i.check, ...(st.items[i.id] || {}), status: st.items[i.id]?.status || 'todo' }));
   const counts = list.reduce((c, i) => (c[i.status] = (c[i.status] || 0) + 1, c), {});
-  const row = i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, note: i.note || '' });
+  const row = i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, confirmed: !!i.confirmed, note: i.note || '' });
   // As in the web app: attention = failing or flagged items still waiting for a decision; decided items are listed
   // apart (approved = fix in progress, done = approved and passing now, declined = still failing, not to be fixed).
   const by = b => list.filter(i => bucketOf(i) === b).map(row);
@@ -94,7 +97,7 @@ function status(s, tab) {
 function bucketOf(i) {
   if (!i.decision) return null;
   const bad = ['fail', 'warn'].includes(i.status);
-  return i.decision === 'decline' ? (bad ? 'declined' : null) : bad ? 'approved' : i.status === 'pass' ? 'done' : null;
+  return i.decision === 'decline' ? (bad ? 'declined' : null) : bad ? (i.confirmed ? 'done' : 'approved') : i.status === 'pass' ? 'done' : null;
 }
 const printStatus = r => {
   console.log(`\n${r.title}: ${Object.entries(r.counts).map(([k, v]) => `${v} ${k}`).join(' · ')}${r.lastRun ? ` (last run ${new Date(r.lastRun).toLocaleString()})` : ' (not run yet)'}`);
@@ -105,7 +108,7 @@ const printStatus = r => {
     for (const d of a.details) console.log(`          - ${d}`);
   }
   if (r.approved.length) { console.log(`  Approved, fix in progress (${r.approved.length}):`); for (const a of r.approved) console.log(`    ${a.status === 'fail' ? 'FAIL' : 'LOOK'}  ${a.title}  [${a.id}]${a.fix ? `  (${a.fix})` : '  (not run yet)'}${a.summary ? `: ${a.summary}` : ''}`); }
-  if (r.done.length) console.log(`  Done (${r.done.length}): ${r.done.map(a => `${a.title} [${a.id}]`).join(', ')}`);
+  if (r.done.length) console.log(`  Done (${r.done.length}): ${r.done.map(a => `${a.title} [${a.id}]${a.confirmed ? ' (confirmed by hand)' : ''}`).join(', ')}`);
   if (r.declined.length) console.log(`  Declined (${r.declined.length}): ${r.declined.map(a => `${a.title} [${a.id}]`).join(', ')}`);
 };
 
@@ -149,6 +152,12 @@ try {
       for (const id of ids) { if (!known.has(id)) die(`Unknown item id: ${id}`); setItem(s.id, tab, id, { decision: cmd === 'approve' ? 'approve' : 'decline', ...(typeof flags.note === 'string' ? { note: flags.note } : {}) }); }
       out(`${cmd === 'approve' ? 'Approved' : 'Declined'} ${ids.length} item${ids.length === 1 ? '' : 's'}.`, { ids });
       break;
+    }
+    case 'confirm-fix': {
+      const s = site(rest[0]); const [tab] = tabArg(rest[1]); const ids = rest.slice(2);
+      if (!ids.length) die('Usage: confirm-fix <site> <tab> <item-id…> [--undo]');
+      for (const id of ids) setItem(s.id, tab, id, { confirm: !flags.undo });
+      out(`${flags.undo ? 'Unconfirmed' : 'Confirmed'}: ${ids.join(', ')}`); break;
     }
     case 'note': { const s = site(rest[0]); const [tab] = tabArg(rest[1]); if (!rest[2] || !rest[3]) die('Usage: note <site> <tab> <item-id> <text>'); setItem(s.id, tab, rest[2], { note: rest.slice(3).join(' ') }); out('Note saved.'); break; }
     case 'plan': {
@@ -229,7 +238,7 @@ try {
       }
       break;
     }
-    case 'rules': { const s = site(rest[0]); if (!s.install) die('This site has no WP Engine install.'); console.log(RULES(s)); break; }
+    case 'rules': { const s = site(rest[0]); if (!s.install) die('This site has no WP Engine install.'); console.log(RULES(s, { headless: false })); break; }
     case 'serve': { spawn(process.execPath, [path.join(ROOT, 'server.mjs')], { stdio: 'inherit' }); break; }
     case undefined: case 'help': case '-h': console.log(HELP); break;
     default: die(`Unknown command "${cmd}".\n\n${HELP}`);

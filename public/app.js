@@ -26,20 +26,35 @@ const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 6
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
 const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request', question: 'Claude asked you' };
 const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request', question: 'Claude has a question · answer above' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
-// The fix pill shows the last fix run's outcome, but the current check result wins: an item that passes now reads
-// "Passes now" (it may have been fixed by another item's fix, by hand, or after a later re-check), and a question
-// from before the checks ran again is no longer waiting for an answer (fix.toolAt is the finding that run worked on).
+// The pill says where an item stands, in plain words. Approved, not done: what's happening with the fix. Done: how it
+// got there. Declined: won't fix. The current check result wins over the last fix run (fix.toolAt is the finding that
+// run worked on), so a passing item is always Done and an old question stops asking for an answer.
 function fixPill(s) {
-  const f = s.fix; if (!f) return null;
-  const stale = f.toolAt !== (s.tool?.at || null);
-  if (s.status === 'pass' && f.state !== 'verified') return { cls: 'verified', text: 'Passes now', title: `The check passes now. Last fix run: ${fixLabel(f)}.` };
-  if (stale && f.state === 'question') return { cls: 'manual', text: 'Claude asked earlier', title: `Checks ran again since. Claude asked: ${f.question || ''}` };
-  return { cls: f.state, text: fixLabel(f), title: f.reason || f.action || '' };
+  const f = s.fix, bad = ['fail', 'warn'].includes(s.status);
+  if (s.decision === 'decline') return bad ? { cls: 'declined', text: 'Declined · won’t fix', title: 'You declined this fix. Press Decline again to undo.' } : null;
+  if (s.decision === 'approve' && bad && s.confirmed) return { cls: 'done', text: 'Done · confirmed by you', title: `You confirmed this fix ${ago(s.confirmed.at)}. The check can't tell by itself; the item comes back if a later run finds something different.` };
+  if (s.decision === 'approve' && s.status === 'pass') {
+    // A fix that ran (verified at once, or applied and confirmed by a later re-check) gets the credit.
+    const how = ['verified', 'applied'].includes(f?.state) ? (f.by === 'claude' ? 'fixed by Claude' : 'fixed by the app') : 'passes now';
+    return { cls: 'done', text: `Done · ${how}`, title: f ? `Last fix run: ${f.action || f.reason || f.state}` : 'The check passes now.' };
+  }
+  if (s.decision === 'approve' && bad) {
+    if (!f) return { cls: 'approved', text: 'Approved · not applied yet', title: 'Runs with the next Apply fixes.' };
+    const stale = f.toolAt !== (s.tool?.at || null);
+    const unreported = f.unreported || /did not report/i.test(f.reason || '');
+    const text = f.state === 'question' ? (stale ? 'Claude asked earlier · run Apply fixes' : 'Claude has a question · answer above')
+      : f.state === 'manual' ? (f.by !== 'claude' ? 'In fix request · needs a developer' : unreported ? 'Claude didn’t finish · in fix request' : 'Claude skipped it · in fix request')
+      : f.state === 'applied' ? (f.by === 'claude' ? 'Claude fixed it · still flagged' : 'Fix applied · still flagged')
+      : f.state === 'failed' ? 'Fix failed'
+      : fixLabel(f);
+    return { cls: f.state === 'question' && !stale ? 'question' : f.state === 'failed' ? 'failed' : f.state === 'applied' ? 'applied' : 'manual', text, title: f.reason || f.action || '' };
+  }
+  return f ? { cls: f.state, text: fixLabel(f), title: f.reason || f.action || '' } : null;
 }
 const copy = async (text, btn) => { try { await navigator.clipboard.writeText(text); const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500); } catch { prompt('Copy this:', text); } };
-const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual', 'question'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
+const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && !(['verified', 'manual', 'question'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
 // Approved items an earlier fix run left in a fix request (same finding): "Retry fix request" runs them again.
-const retryFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && s.fix?.state === 'manual' && s.fix.toolAt === s.tool?.at; });
+const retryFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && s.fix?.state === 'manual' && s.fix.toolAt === s.tool?.at; });
 let fixRetry = false;
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
@@ -82,11 +97,11 @@ function statusOf(t, it) { return tabState(t).items[it.id]?.status || 'todo'; }
 //   approved: fix approved, still failing or flagged (in progress) · done: fix approved and the check passes now ·
 //   declined: fix declined, still failing or flagged. A declined item that passes later is back to normal; a done
 //   item that fails again is approved (in progress) again.
-const BUCKETS = { approved: 'Approved', done: 'Done', declined: 'Declined' };
+const BUCKETS = { approved: 'Approved, not done', done: 'Done', declined: 'Declined' };
 function bucketOf(t, it) {
   const s = tabState(t).items[it.id]; if (!s?.decision) return null;
   const bad = ['fail', 'warn'].includes(s.status);
-  return s.decision === 'decline' ? (bad ? 'declined' : null) : bad ? 'approved' : s.status === 'pass' ? 'done' : null;
+  return s.decision === 'decline' ? (bad ? 'declined' : null) : bad ? (s.confirmed ? 'done' : 'approved') : s.status === 'pass' ? 'done' : null;
 }
 const isBad = (t, it) => ['fail', 'warn'].includes(statusOf(t, it)) && !bucketOf(t, it);
 
@@ -104,12 +119,10 @@ function render() {
     const ran = tabState(t).runs?.length;
     return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
   }));
-  $('reportLink').hidden = tab === 'urls'; $('runTool').hidden = false; document.querySelector('.filters').hidden = false;
-  document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Changed' : 'Needs attention';
-  document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'Same URL' : 'Manual';
+  $('reportLink').hidden = tab === 'urls'; $('runTool').hidden = false;
+  // Filters live on the count tiles; a filter from another kind of tab doesn't carry over.
+  if ((tab === 'urls') !== filter.startsWith('u:') && filter !== 'all') filter = 'all';
   $('secNav').hidden = tab === 'urls'; $('askPanel').hidden = true; fixRetry = false;
-  for (const b of Object.keys(BUCKETS)) document.querySelector(`.filters [data-filter="${b}"]`).hidden = true;
-  if (tab === 'urls' && BUCKETS[filter]) filter = 'all';
   if (tab === 'urls') return renderUrls();
   if (tab === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return renderLiveGate();
   const tpl = templates[tab]; const ts = tabState(tab);
@@ -129,11 +142,17 @@ function render() {
   const items = tpl.sections.flatMap(s => s.items);
   const inBucket = Object.fromEntries(Object.keys(BUCKETS).map(b => [b, items.filter(i => bucketOf(tab, i) === b).length]));
   const counts = Object.fromEntries(Object.keys(LABEL).map(k => [k, items.filter(i => statusOf(tab, i) === k && !bucketOf(tab, i)).length]));
-  $('counts').replaceChildren(...Object.keys(TILE).map(k => el('div', { class: `count c-${k}` }, el('b', { text: String(counts[k]) }), el('span', { text: TILE[k] }))),
-    ...Object.keys(BUCKETS).filter(b => inBucket[b]).map(b => el('button', { type: 'button', class: `count c-${b}`, title: `Show the ${BUCKETS[b].toLowerCase()} items`, onclick: () => { filter = b; applyFilter(); } }, el('b', { text: String(inBucket[b]) }), el('span', { text: BUCKETS[b].toLowerCase() }))),
-    el('div', { class: 'count c-auto' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
-  for (const b of Object.keys(BUCKETS)) { const btn = document.querySelector(`.filters [data-filter="${b}"]`); btn.hidden = !inBucket[b]; btn.textContent = `${BUCKETS[b]} (${inBucket[b]})`; }
-  if (BUCKETS[filter] && !inBucket[filter]) filter = 'all';
+  // The count tiles are the filters: All (everything not decided yet), each status, Manual, then the decided views.
+  const open = items.filter(i => !bucketOf(tab, i));
+  const manual = open.filter(i => !i.check).length;
+  const shown = { pass: counts.pass, fail: counts.fail, warn: counts.warn, na: counts.na, todo: counts.todo, manual, ...inBucket };
+  if (filter !== 'all' && !shown[filter]) filter = 'all';
+  $('counts').replaceChildren(
+    countTile('all', 'c-all', open.length, 'all', 'Everything still waiting for a decision (decided items are in their own tiles)'),
+    ...Object.keys(TILE).map(k => countTile(k, `c-${k}`, counts[k], TILE[k])),
+    countTile('manual', 'c-manual', manual, 'manual', 'Items no tool can check: mark them yourself'),
+    ...Object.keys(BUCKETS).filter(b => inBucket[b]).map(b => countTile(b, `c-${b}`, inBucket[b], BUCKETS[b].toLowerCase())),
+    el('div', { class: 'count c-auto', title: 'Items Run Tool checks automatically' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
 
   renderSecNav(tpl);
   $('sections').replaceChildren(...tpl.sections.map(sec => {
@@ -178,7 +197,11 @@ function itemRow(it) {
   let t; const note = el('input', { type: 'text', value: s.note || '', placeholder: 'Add a note…', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
   const fix = ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
-    el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) })) : null;
+    el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) }),
+    // Confirm fix: the approved fix is done but the check can't verify it. Moves the item to Done until the finding changes.
+    s.decision === 'approve' ? el('button', { type: 'button', 'data-d': 'confirm', 'aria-pressed': String(!!s.confirmed), text: s.confirmed ? 'Confirmed ✓' : 'Confirm fix',
+      title: s.confirmed ? 'Undo: move it back to Approved, not done.' : 'The fix is done, but the check can’t verify it. Moves this item to Done until a later run finds something different.',
+      onclick: () => save({ confirm: !s.confirmed }) }) : null) : null;
   return el('article', { class: 'item', 'data-status': status, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
     el('div', { class: 'item-main' },
       el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
@@ -212,13 +235,21 @@ $('shotDialog').addEventListener('click', e => { if (e.target === $('shotDialog'
 $('shotDialog').addEventListener('keydown', e => { if (e.key === 'ArrowLeft') stepShot(-1); if (e.key === 'ArrowRight') stepShot(1); });
 $('shotDialog').addEventListener('close', () => { $('shotImg').removeAttribute('src'); });
 
+// A count tile that filters the list. Empty tiles (0) can't be picked; a picked tile is outlined.
+function countTile(key, cls, n, label, title) {
+  return el('button', { type: 'button', class: `count ${cls}`, 'data-filter': key, 'aria-pressed': String(filter === key), disabled: n || key === 'all' ? null : true, title: title || `Show the ${label} items`, onclick: () => { filter = filter === key && key !== 'all' ? 'all' : key; applyFilter(); } }, el('b', { text: String(n) }), el('span', { text: label }));
+}
+
 function applyFilter() {
-  document.querySelectorAll('.filters button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
+  document.querySelectorAll('#counts [data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
   document.querySelectorAll('.item, .urow').forEach(r => {
     const st = r.dataset.status; const bucket = r.dataset.bucket || '';
     // Approved / Done / Declined items only show in their own view; All, Needs attention and Manual leave them out.
-    const hide = r.classList.contains('urow') ? (filter === 'attention' ? st === 'none' : filter === 'manual' ? st !== 'none' : false)
-      : BUCKETS[filter] ? bucket !== filter : !!bucket || (filter === 'attention' ? !['fail', 'warn'].includes(st) : filter === 'manual' ? r.dataset.auto === '1' : false);
+    // URL rows: u:none / u:redirect / u:attention (scan status), u:approved, u:done. Checklist items: All = not decided;
+    // a status tile = not decided with that status; Manual = not decided and checked by hand; or a decided view.
+    const hide = r.classList.contains('urow')
+      ? (filter === 'all' ? false : filter === 'u:approved' ? r.dataset.decision !== 'approve' : filter === 'u:done' ? r.dataset.done !== '1' : filter !== 'u:' + st)
+      : BUCKETS[filter] ? bucket !== filter : !!bucket || (filter === 'all' ? false : filter === 'manual' ? r.dataset.auto === '1' : st !== filter);
     r.classList.toggle('hidden-by-filter', hide);
   });
   // The Approved / Done / Declined views list every such item in the checklist, whatever section is picked.
@@ -249,7 +280,6 @@ $('runTool').addEventListener('click', async () => {
   catch (e) { setRunning(false); alert(e.message); }
 });
 $('sitePick').addEventListener('change', e => openSite(e.target.value));
-document.querySelectorAll('.filters button').forEach(b => b.addEventListener('click', () => { filter = b.dataset.filter; applyFilter(); }));
 
 // Add / edit site dialog
 let editing = null;
@@ -287,7 +317,7 @@ function renderAsk() {
   // Only questions still open: the item is still waiting on this run's question for the same finding (a re-check,
   // a newer fix run or a change of decision makes the question out of date).
   const ts = tabState(tab);
-  const open = run => (run.questions || []).filter(q => { const s = ts.items[q.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && s.fix?.state === 'question' && s.fix.runId === run.id && s.fix.toolAt === s.tool?.at; });
+  const open = run => (run.questions || []).filter(q => { const s = ts.items[q.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && s.fix?.state === 'question' && s.fix.runId === run.id && s.fix.toolAt === s.tool?.at; });
   const r0 = (ts.fixRuns || []).find(x => !x.answeredBy && open(x).length);
   const r = r0 && { ...r0, questions: open(r0) };
   const fresh = r && r.id !== askRun?.id;
@@ -390,8 +420,10 @@ function renderUrls() {
   }
   const c = { none: 0, redirect: 0, attention: 0 }; rows.forEach(r => c[eff(r).status]++);
   const done = rows.filter(r => ['verified', 'applied', 'exists'].includes(r.applied?.state)).length;
-  const tile = (cls, n, label) => el('div', { class: `count ${cls}` }, el('b', { text: String(n) }), el('span', { text: label }));
-  $('counts').replaceChildren(...(rows.length ? [tile('c-pass', c.none, 'same URL'), tile('c-warn', c.redirect, 'URL changed'), tile('c-fail', c.attention, 'need attention'), tile('c-auto', rows.filter(r => r.decision === 'approve').length, 'approved'), tile('c-na', done, 'done')] : []));
+  const approved = rows.filter(r => r.decision === 'approve').length;
+  const shownU = { 'u:none': c.none, 'u:redirect': c.redirect, 'u:attention': c.attention, 'u:approved': approved, 'u:done': done };
+  if (filter !== 'all' && !shownU[filter]) filter = 'all';
+  $('counts').replaceChildren(...(rows.length ? [countTile('all', 'c-all', rows.length, 'all', 'Every old page'), countTile('u:none', 'c-pass', c.none, 'same URL'), countTile('u:redirect', 'c-warn', c.redirect, 'URL changed'), countTile('u:attention', 'c-fail', c.attention, 'need attention'), countTile('u:approved', 'c-approved', approved, 'approved'), countTile('u:done', 'c-done', done, 'done')] : []));
   if (!rows.length) {
     $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site. Then you can import the old site\'s redirects.')));
     return;
@@ -423,7 +455,7 @@ function renderUrls() {
     const decide = e.status === 'none' ? null : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
       el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target ? null : true, title: e.target ? '' : 'Pick the new page first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
-    return el('tr', { class: 'urow', 'data-status': e.status },
+    return el('tr', { class: 'urow', 'data-status': e.status, 'data-decision': r.decision || '', 'data-done': ['verified', 'applied', 'exists'].includes(r.applied?.state) ? '1' : '0' },
       el('td', { class: 'upage' }, el('b', { text: r.page }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
       el('td', { class: 'ustat' }, status, el('small', { text: r.auto?.reason || '' })),
       el('td', { class: 'unew' }, alts, target, choice, why),
@@ -500,7 +532,7 @@ function legacySection(u, origin) {
 // QA — After Launch checks the production site, so it unlocks once someone confirms the site is live there.
 function renderLiveGate() {
   const p = data.state.prod;
-  $('runTool').hidden = true; $('applyFixes').hidden = true; $('fixHistory').hidden = true; $('secNav').hidden = true; $('reportLink').hidden = true; document.querySelector('.filters').hidden = true;
+  $('runTool').hidden = true; $('applyFixes').hidden = true; $('fixHistory').hidden = true; $('secNav').hidden = true; $('reportLink').hidden = true;
   $('lastRun').textContent = ''; $('counts').replaceChildren();
   $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Unlocks once the site is live' }),
     el('p', { text: current.prodUrl ? `QA — After Launch checks the production site, ${current.prodUrl.replace(/^https?:\/\//, '')}. Everything else runs on staging. Confirm it once the new site is published there.` : 'QA — After Launch checks the production site; everything else runs on staging. Add the live domain as the Production site to audit in Site settings, then confirm it here once the new site is published there.' }),

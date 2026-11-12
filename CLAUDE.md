@@ -45,7 +45,9 @@ The same data is shown in the web app (`npm start` → http://localhost:4646).
    backup path and the restore commands it prints.
 7. Items left in the fix request (`data/runs/<site>/<run>/fix-request.md`): fix them yourself in
    this conversation, following `node bin/wpeqa.mjs rules <site>` exactly. The fix run already took
-   a backup. Then `run <site> <tab>` again to verify, and report item by item. (If the person prefers
+   a backup. Then `run <site> <tab>` again to verify, and report item by item. If a fix is done but its check
+   can't tell (a judgment call the check keeps flagging), say so and, only with the person's OK,
+   `confirm-fix <site> <tab> <item-id>`: the item moves to Done until a later run finds something different. (If the person prefers
    to hand them off, `fix … --yes --claude` runs a separate headless Claude Code session instead.
    If that session asks the person a question, the command prints it with the fix-run id; relay it,
    and send their reply with `answer <site> <tab> <fix-run-id> "<their answer>" --yes`. The web app

@@ -7,7 +7,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test test/greenlight.test.mjs test/claude.test.mjs test/fixers.test.mjs",
+    "test": "node --test test/greenlight.test.mjs test/claude.test.mjs test/fixers.test.mjs test/emails.test.mjs test/confirm.test.mjs",
     "import-sheet": "python3 scripts/import-sheet.py"
   },
   "dependencies": {

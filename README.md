@@ -19,7 +19,7 @@ newer**, Run Tool reads Greenlight's security setup and alerts:
 | Tab | What Run Tool does |
 |---|---|
 | **QA Swarm** | Crawls every sitemap page on desktop and phone: HTTP status, internal links, accessibility/SEO basics, 375 px fit, phone menu, screenshots, and (with a reference site) content completeness. Scores each page and the whole site, like the `qa-swarm` skill. |
-| **WP Site Audit** | The `wp-site-audit` skill's checks: collapsed and empty links, asset URLs used as links, duplicate images, junk posts and slug collisions, exposed emails, mu-plugins, long H1s, alt text, phone formats, CPT featured images, Yoast title suffix, placeholder leaks, page-local styles. |
+| **WP Site Audit** | The `wp-site-audit` skill's checks: collapsed and empty links, asset URLs used as links, duplicate images, junk posts and slug collisions, exposed emails (passes when every email shown is a mailto link; lists each address and where it appears), mu-plugins, long H1s, alt text, phone formats, CPT featured images, Yoast title suffix, placeholder leaks, page-local styles. |
 | **QA — Before Launch** | The Audit Sheet's "QA — Before Launch" tab. 90 of 133 items are checked automatically (WordPress settings, plugins, updates, login URL, Greenlight security hardening, 404, alt text, tap-to-call phones, headings, tap targets, consent, security headers, schema, Lighthouse…). The rest are manual. |
 | **QA — After Launch** | The Audit Sheet's "QA — After Launch" tab. 35 of 49 items are automatic (indexable, old/staging URLs in the database, SSL and mixed content, open Greenlight security alerts, sitemap, robots.txt, noindex, staging links, consent, schema drift, console errors, Lighthouse…). |
 | **Old → New URLs** | Tests every page of the old site on the new site and proposes the redirects, and carries over the old site's own redirects from its export file; approved ones are added to the Redirection plugin for you (see below). |
@@ -38,19 +38,27 @@ get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the app
 first (see below). **Report** opens a
 Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
-Once you decide on an item it leaves the main list, so **All** and **Needs attention** only show what still needs a
-decision (and the tab's red badge counts only those). Decided items have their own views, next to the filters and as
-count tiles you can click:
+**The count tiles are the filters.** Click a tile to show only those items (it gets an outline), click it again or
+**All** to show everything; empty tiles can't be picked. **All**, the status tiles (passed, failed, to look at, n/a,
+to do) and **manual** (items no tool can check) count only what still needs a decision, and so does the tab's red badge.
+Once you decide on an item it moves to one of three tiles of its own:
 
-| View | Items |
-|---|---|
-| **Approved (N)** | Fix approved, still failing or flagged: waiting for **Apply fixes**, in a fix request, or waiting for your answer to Claude |
-| **Done (N)** | Fix approved and the check passes now |
-| **Declined (N)** | Fix declined and still failing or flagged (a wrong finding, or not worth fixing) |
+| Tile | Items | Pill on each item |
+|---|---|---|
+| **approved, not done** | Fix approved, still failing or flagged | **Approved · not applied yet** · **In fix request · needs a developer** · **Claude skipped it · in fix request** · **Claude didn’t finish · in fix request** · **Claude has a question · answer above** · **Fix applied · still flagged** / **Claude fixed it · still flagged** · **Fix failed** |
+| **done** | Fix approved and the check passes now, or you confirmed it | **Done · fixed by the app** · **Done · fixed by Claude** · **Done · passes now** (fixed some other way, or by another item's fix) · **Done · confirmed by you** |
+| **declined** | Fix declined and still failing or flagged (a wrong finding, or not worth fixing) | **Declined · won’t fix** |
 
-Undo a decision from its view (press Approve or Decline again) and the item is back in the main list. A declined item
-that passes later goes back to normal; a done item that fails again moves to Approved. `status` on the command line
-groups items the same way.
+**Confirm fix.** Most checks verify a fix by themselves on the next run. When a fix is done but its check can't tell
+(a judgment call it keeps flagging), press **Confirm fix** on the approved item: it moves to **done** with
+**Done · confirmed by you**, and stays there until a later run finds something different (then it's back in
+**approved, not done** for a new look). Press it again (**Confirmed ✓**) to undo. Command line:
+`confirm-fix <site> <tab> <item-id…> [--undo]`.
+
+Undo a decision from its tile (press Approve or Decline again) and the item is back in the main list. A declined item
+that passes later goes back to normal; a done item that fails again moves to approved, not done. `status` on the
+command line groups items the same way. On **Old → New URLs** the tiles (all, same URL, URL changed, need attention,
+approved, done) filter the page list the same way.
 
 Elementor, YOOtheme and Tailwind sections are kept but marked N/A automatically unless the site uses them.
 

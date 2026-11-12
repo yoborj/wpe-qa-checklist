@@ -57,3 +57,17 @@ test('the rules tell a headless run not to wait for a go-ahead, and how to ask',
   assert.match(r, /do not stop to ask for a go-ahead/);
   assert.match(r, /"result":"question"/);
 });
+
+test('a headless run must not sleep, background or schedule: the app waits and clears caches', () => {
+  // A real run did "sleep 130" in the background, scheduled a wake-up and ended without reporting.
+  const r = RULES(site);
+  assert.match(r, /never sleep or wait, never start background tasks, and never schedule a wake-up/);
+  assert.match(r, /the app waits about 2 minutes/);
+  assert.doesNotMatch(r, /After changes, wait about 2 minutes/);
+});
+
+test('the interactive rules (wpeqa rules) keep the wait and cache clearing', () => {
+  const r = RULES(site, { headless: false });
+  assert.match(r, /After changes, wait about 2 minutes/);
+  assert.doesNotMatch(r, /headless/);
+});
