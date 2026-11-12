@@ -24,10 +24,13 @@ const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag)
 const api = async (path, opts = {}) => { const r = await fetch('/api' + path, { headers: { 'content-type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
 const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString(); };
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
-const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request' };
-const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
+const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request', question: 'Claude asked you' };
+const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request', question: 'Claude has a question · answer above' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
 const copy = async (text, btn) => { try { await navigator.clipboard.writeText(text); const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500); } catch { prompt('Copy this:', text); } };
-const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
+const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !(['verified', 'manual', 'question'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
+// Approved items an earlier fix run left in a fix request (same finding): "Retry fix request" runs them again.
+const retryFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && s.fix?.state === 'manual' && s.fix.toolAt === s.tool?.at; });
+let fixRetry = false;
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
 let config = {}, templates = {}, sites = [], current = null, data = null, tab = store.get('wpeqa.tab') || 'qa-swarm', filter = 'all', stream = null;
@@ -83,7 +86,7 @@ function render() {
   $('reportLink').hidden = tab === 'urls'; $('runTool').hidden = false; document.querySelector('.filters').hidden = false;
   document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Changed' : 'Needs attention';
   document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'Same URL' : 'Manual';
-  $('secNav').hidden = tab === 'urls';
+  $('secNav').hidden = tab === 'urls'; $('askPanel').hidden = true; fixRetry = false;
   if (tab === 'urls') return renderUrls();
   if (tab === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return renderLiveGate();
   const tpl = templates[tab]; const ts = tabState(tab);
@@ -91,9 +94,13 @@ function render() {
   $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
   $('reportLink').href = `/api/sites/${current.id}/report/${tab}`;
   $('runTool').textContent = `Run Tool`;
-  const pend = pendingFixes(tab).length;
-  $('applyFixes').hidden = !pend; $('applyFixes').textContent = `Apply fixes (${pend})`;
-  renderHistory();
+  // Nothing new to fix, but approved items are sitting in a fix request: offer to retry them (e.g. with Claude).
+  const pend = pendingFixes(tab).length, retry = pend ? 0 : retryFixes(tab).length;
+  fixRetry = !pend && retry > 0;
+  $('applyFixes').hidden = !pend && !retry;
+  $('applyFixes').textContent = pend ? `Apply fixes (${pend})` : `Retry fix request (${retry})`;
+  $('applyFixes').title = fixRetry ? 'These approved items were left in a fix request by an earlier run. Run them again, for example with Claude.' : '';
+  renderHistory(); renderAsk();
   $('runTool').title = `Run the automatic ${tpl.title} checks on ${current.name}`;
 
   const items = tpl.sections.flatMap(s => s.items);
@@ -189,7 +196,7 @@ function applyFilter() {
   $('secEmpty').hidden = tab === 'urls' || shown > 0;
 }
 
-function setRunning(on) { $('runTool').disabled = on; $('applyFixes').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
+function setRunning(on) { $('runTool').disabled = on; $('applyFixes').disabled = on; $('askSend').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
 
 function follow(runId) {
   if (stream) stream.close();
@@ -240,6 +247,36 @@ $('deleteSite').addEventListener('click', async () => {
   await api('/sites/' + current.id, { method: 'DELETE' }); $('siteDialog').close(); await loadSites();
 });
 
+// Claude's questions from the latest fix run that has some and isn't answered yet. The answer continues the same
+// Claude Code conversation (the app backs up again first), so the person never leaves the app.
+let askRun = null;
+function renderAsk() {
+  const runs = tabState(tab).fixRuns || [];
+  const r = runs.find(x => x.questions?.length && !x.answeredBy);
+  const fresh = r && r.id !== askRun?.id;
+  askRun = r || null;
+  $('askPanel').hidden = !r;
+  if (!r) return;
+  const n = r.questions.length;
+  $('askTitle').textContent = n === 1 ? 'Claude needs your answer' : `Claude needs your answers (${n} items)`;
+  $('askMeta').textContent = `From the fix run ${new Date(r.finishedAt).toLocaleString()}. Claude is waiting for you before it finishes ${n === 1 ? 'this item' : 'these items'}.`;
+  $('askList').replaceChildren(...r.questions.map(q => el('li', {}, el('b', { text: q.title }), el('p', { class: 'askq', text: q.question || '(no question text)' }))));
+  $('askNote').textContent = `Sending lets Claude continue ${n === 1 ? 'this item' : 'these items'} on ${current.url}. The app backs up the site first, then re-checks this tab. ${n > 1 ? 'Answer each question in one message (e.g. "Emails: yes, link them. Logos: skip for now.").' : ''}`;
+  $('askErr').hidden = true;
+  if (fresh) $('askAnswer').value = '';
+}
+$('askSend').addEventListener('click', async () => {
+  const answer = $('askAnswer').value.trim();
+  if (!askRun) return;
+  if (!answer) { $('askErr').textContent = 'Write your answer first.'; $('askErr').hidden = false; return $('askAnswer').focus(); }
+  try {
+    $('askSend').disabled = true; $('askErr').hidden = true;
+    const r = await api(`/sites/${current.id}/fix/${tab}/reply`, { method: 'POST', body: { runId: askRun.id, answer } });
+    $('askPanel').hidden = true; follow(r.runId);
+  } catch (e) { $('askErr').textContent = e.message; $('askErr').hidden = false; }
+  finally { $('askSend').disabled = false; }
+});
+
 // Fix history: each fix run with its backup, restore commands and fix request.
 function renderHistory() {
   const runs = tabState(tab).fixRuns || [];
@@ -251,6 +288,9 @@ function renderHistory() {
     const reqCopy = r.request ? el('button', { class: 'btn ghost', type: 'button', text: 'Copy fix request', onclick: async e => { const t = await (await fetch(`/api/sites/${current.id}/fix-request/${r.id}`)).text(); copy(t, e.target); } }) : null;
     return el('div', { class: 'fixrun' },
       el('div', {}, el('b', { text: new Date(r.finishedAt).toLocaleString() }), ` · ${states}`),
+      r.replyTo ? el('div', { class: 'muted', text: 'Continued Claude’s conversation with your answer.' }) : null,
+      ...(r.questions || []).map(q => el('div', { class: 'qa-line' }, el('b', { text: `Claude asked (${q.title}): ` }), q.question)),
+      r.answer ? el('div', { class: 'qa-line' }, el('b', { text: 'You answered: ' }), r.answer) : null,
       r.backup ? el('div', {}, 'Backup: ', el('code', { text: r.backup.path }), r.backup.size ? ` (${r.backup.size})` : '') : el('div', { class: 'muted', text: 'No backup (no changes were made; fix request only).' }),
       el('div', { class: 'row' }, r.backup ? restore : null, reqLink, reqCopy));
   }));
@@ -260,10 +300,10 @@ function renderHistory() {
 $('applyFixes').addEventListener('click', async () => {
   $('fixErr').hidden = true; $('fixConfirm').checked = false; $('fixGo').disabled = true;
   if (tab === 'urls') return openRedirectsDialog();
-  $('fixTitle').textContent = 'Apply approved fixes';
+  $('fixTitle').textContent = fixRetry ? 'Retry the fix request' : 'Apply approved fixes';
   $('fixAfterText').textContent = "Caches are cleared and this tab's checks run again, so each fix shows as verified or still flagged.";
   let plan;
-  try { plan = await api(`/sites/${current.id}/fix/${tab}/plan`); } catch (e) { return alert(e.message); }
+  try { plan = await api(`/sites/${current.id}/fix/${tab}/plan${fixRetry ? '?retry=1' : ''}`); } catch (e) { return alert(e.message); }
   const auto = plan.auto.length, man = plan.manual.length;
   $('fixSite').textContent = `${current.name} · ${plan.url}${plan.install ? ` · WP Engine install ${plan.install}` : ''} · ${templates[tab].title}`;
   $('fixBackupSec').hidden = !auto;
@@ -292,7 +332,7 @@ $('applyFixes').addEventListener('click', async () => {
 $('fixConfirm').addEventListener('change', e => { $('fixGo').disabled = !e.target.checked; });
 $('fixCancel').addEventListener('click', () => $('fixDialog').close());
 $('fixGo').addEventListener('click', async () => {
-  try { $('fixGo').disabled = true; const r = await api(`/sites/${current.id}/fix/${tab}`, { method: 'POST', body: { confirm: true, claude: tab !== 'urls' && $('fixClaude').checked && !$('claudeRow').hidden } }); $('fixDialog').close(); follow(r.runId); }
+  try { $('fixGo').disabled = true; const r = await api(`/sites/${current.id}/fix/${tab}`, { method: 'POST', body: { confirm: true, retry: fixRetry, claude: tab !== 'urls' && $('fixClaude').checked && !$('claudeRow').hidden } }); $('fixDialog').close(); follow(r.runId); }
   catch (e) { $('fixErr').textContent = e.message; $('fixErr').hidden = false; $('fixGo').disabled = false; }
 });
 

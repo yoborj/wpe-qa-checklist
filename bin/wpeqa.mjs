@@ -29,9 +29,14 @@ const HELP = `WPE QA Checklist ${VERSION} — command line
   decline <site> <tab> <item-id…>        Record fix decisions, as the Approve/Decline buttons do
   note <site> <tab> <item-id> <text>     Save a note on an item (e.g. the login slug for Hide the login URL)
   plan <site> <tab>                      What "Apply approved fixes" would do: automatic fixes and the rest
-  fix <site> <tab> --yes [--claude]      Apply approved fixes: backup first, automatic fixes, verify.
+  fix <site> <tab> --yes [--claude] [--retry]
+                                         Apply approved fixes: backup first, automatic fixes, verify.
                                          --claude also hands the rest to a headless Claude Code run.
+                                         --retry includes approved items an earlier run left in a fix request.
                                          --yes is the confirmation; only pass it after the site owner approved the plan.
+  answer <site> <tab> <fix-run-id> <text…> --yes
+                                         Answer the questions Claude asked in that --claude fix run: continues the same
+                                         Claude conversation (backup first, then verify). The web app shows the same box.
   confirm-live <site> [--yes]            QA — After Launch runs on the live site only: check it, then (--yes) confirm it
   urls <site> run                        Old → New URLs: test every old-site page on the new site (read-only)
   urls <site> [status]                   The URL list: status, proposed new URL, decision (ids in brackets)
@@ -55,12 +60,16 @@ const argv = process.argv.slice(2);
 const flags = {}; const pos = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
-  if (a.startsWith('--')) { const k = a.slice(2); const v = argv[i + 1] && !argv[i + 1].startsWith('--') && !['yes', 'claude', 'json', 'all-failing'].includes(k) ? argv[++i] : true; flags[k] = v; }
+  if (a.startsWith('--')) { const k = a.slice(2); const v = argv[i + 1] && !argv[i + 1].startsWith('--') && !['yes', 'claude', 'retry', 'json', 'all-failing'].includes(k) ? argv[++i] : true; flags[k] = v; }
   else pos.push(a);
 }
 const json = !!flags.json;
 const out = (human, data) => console.log(json ? JSON.stringify(data ?? human, null, 1) : human);
 const die = msg => { console.error(msg); process.exit(1); };
+const fixSummary = (s, tab, r) => `\nFix run ${r.meta.id}: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}`
+  + (r.meta.backup ? `\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}` : '')
+  + (r.request ? `\nFix request (items still to do): data/runs/${s.id}/${r.meta.id}/fix-request.md` : '')
+  + (r.questions?.length ? `\n\nClaude asked:\n${r.questions.map(q => `  - ${q.title} [${q.id}]: ${q.question}`).join('\n')}\nAnswer in the web app, or: node bin/wpeqa.mjs answer ${s.id} ${tab} ${r.meta.id} "<answer>" --yes` : '');
 
 const findSite = ref => getSite(ref) || listSites().find(x => { try { return new URL(/^https?:/.test(ref) ? ref : 'https://' + ref).hostname.replace(/^www\./, '') === new URL(x.url).hostname.replace(/^www\./, ''); } catch { return false; } });
 function site(ref) {
@@ -146,8 +155,16 @@ try {
     case 'fix': {
       const s = site(rest[0]); const [tab] = tabArg(rest[1]);
       if (flags.yes !== true) die('Fixes change the site. Show the plan to the site owner (`plan`), get their OK, then re-run with --yes.');
-      const r = await fixJob({ site: s, tab, claude: !!flags.claude });
-      out(`\nFix run ${r.meta.id}: ${Object.entries(r.meta.states).map(([k, v]) => `${v} ${k}`).join(', ')}${r.meta.backup ? `\nBackup: ${r.meta.backup.path}\nRestore: ${r.meta.backup.restore.join(' && ')}` : ''}${r.request ? `\nFix request (items still to do): data/runs/${s.id}/${r.meta.id}/fix-request.md` : ''}`, r);
+      const r = await fixJob({ site: s, tab, claude: !!flags.claude, retry: !!flags.retry });
+      out(fixSummary(s, tab, r), r);
+      break;
+    }
+    case 'answer': {
+      const s = site(rest[0]); const [tab] = tabArg(rest[1]); const runId = rest[2]; const answer = rest.slice(3).join(' ').trim();
+      if (!runId || !answer) die('Usage: answer <site> <tab> <fix-run-id> <your answer…> --yes');
+      if (flags.yes !== true) die('Answering lets Claude continue changing the site. Get the site owner\'s answer and OK, then re-run with --yes.');
+      const r = await fixJob({ site: s, tab, reply: { to: runId, answer } });
+      out(fixSummary(s, tab, r), r);
       break;
     }
     case 'confirm-live': {

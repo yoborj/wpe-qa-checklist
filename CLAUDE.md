@@ -46,7 +46,12 @@ The same data is shown in the web app (`npm start` → http://localhost:4646).
 7. Items left in the fix request (`data/runs/<site>/<run>/fix-request.md`): fix them yourself in
    this conversation, following `node bin/wpeqa.mjs rules <site>` exactly. The fix run already took
    a backup. Then `run <site> <tab>` again to verify, and report item by item. (If the person prefers
-   to hand them off, `fix … --yes --claude` runs a separate headless Claude Code session instead.)
+   to hand them off, `fix … --yes --claude` runs a separate headless Claude Code session instead.
+   If that session asks the person a question, the command prints it with the fix-run id; relay it,
+   and send their reply with `answer <site> <tab> <fix-run-id> "<their answer>" --yes`. The web app
+   shows the same question in a "Claude needs your answer" box.)
+   These steps are for interactive sessions. A headless `--claude` run gets its own rules (the person
+   already approved it in the app) and reports questions instead of asking for a go-ahead.
 
 ## QA — After Launch: production only
 

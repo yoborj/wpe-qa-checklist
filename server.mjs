@@ -5,11 +5,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { ROOT, DATA, TABS, templates, listSites, getSite, saveSite, deleteSite, getState, setItem, runDir } from './lib/store.mjs';
-import { checkJob, fixJob, legacyJob, newRunId, runLogger } from './lib/jobs.mjs';
+import { checkJob, fixJob, legacyJob, openQuestions, newRunId, runLogger } from './lib/jobs.mjs';
 import { setLegacyRow } from './lib/legacy.mjs';
 import { claudeStatus } from './lib/claude.mjs';
 import { agency } from './lib/config.mjs';
-import { planFixes } from './lib/fixers.mjs';
+import { planFixes, retryIds } from './lib/fixers.mjs';
 import { report } from './lib/report.mjs';
 import { URLS_TAB, setUrlRow, recheckKeep, planRedirects, effective } from './lib/redirects.mjs';
 import { liveChecks, confirmLive } from './lib/live.mjs';
@@ -46,7 +46,7 @@ function startJob(site, tab, kind, opts = {}) {
   runs.set(id, run);
   const log = runLogger(runDir(site.id, id), l => { run.log.push(l); emit(run, 'log', l); });
   const progress = p => { run.progress = Math.max(run.progress, Math.min(1, p)); emit(run, 'progress', run.progress); };
-  const job = kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude }).then(r => r.meta) : kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress });
+  const job = kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude, reply: opts.reply || null, retry: !!opts.retry }).then(r => r.meta) : kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress });
   job.then(meta => { run.result = meta; emit(run, 'done', meta); })
     .catch(e => { log(`Stopped: ${e.message}`); run.error = e.message; emit(run, 'failed', { error: e.message }); })
     .finally(() => { run.done = true; for (const l of run.listeners) l.end(); run.listeners.clear(); setTimeout(() => runs.delete(id), 30 * 60 * 1000); });
@@ -91,11 +91,21 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p[3] === 'fix' && p[4] === URLS_TAB && p[5] === 'plan') { const pl = planRedirects(site.id); return send(res, 200, { install: site.install, url: site.url, todo: pl.todo, skipped: pl.skipped.map(r => ({ page: r.page, from: r.oldPath, why: r.why })) }); }
     if (req.method === 'POST' && p[3] === 'fix' && p[4] === URLS_TAB) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the redirects first.' }); const r = startJob(site, URLS_TAB, 'fix'); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'fix' && TABS.includes(p[4]) && p[5] === 'plan') {
-      const plan = planFixes(templates()[p[4]], getState(site.id).tabs[p[4]] || { items: {} }, site);
+      const ts = getState(site.id).tabs[p[4]] || { items: {} };
+      const plan = planFixes(templates()[p[4]], ts, site, url.searchParams.get('retry') === '1' ? { include: retryIds(templates()[p[4]], ts) } : {});
       const strip = x => ({ id: x.id, title: x.title, action: x.action, reason: x.reason, note: x.item.note || '' });
       return send(res, 200, { install: site.install, url: site.url, auto: plan.auto.map(strip), manual: plan.manual.map(strip), backupPlugins: plan.auto.some(a => a.check === 'wp.plugins'), ...(st => ({ claudeAvailable: st.ok, claudeReason: st.reason || null }))(plan.manual.length ? claudeStatus() : { ok: false }) });
     }
-    if (req.method === 'POST' && p[3] === 'fix' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the fix run first.' }); const r = startJob(site, p[4], 'fix', { claude: b.claude === true }); return send(res, 200, { runId: r.id }); }
+    // The owner's answer to Claude's questions from a fix run: continues that Claude conversation (backup first).
+    if (req.method === 'POST' && p[3] === 'fix' && TABS.includes(p[4]) && p[5] === 'reply') {
+      const b = await body(req); const answer = String(b.answer || '').trim();
+      if (!answer) return send(res, 400, { error: 'Write your answer to Claude first.' });
+      openQuestions(site, p[4], String(b.runId || '')); // throws a clear error if there's nothing to answer
+      const st = claudeStatus(); if (!st.ok) return send(res, 400, { error: st.reason });
+      const r = startJob(site, p[4], 'fix', { reply: { to: String(b.runId), answer } });
+      return send(res, 200, { runId: r.id });
+    }
+    if (req.method === 'POST' && p[3] === 'fix' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the fix run first.' }); const r = startJob(site, p[4], 'fix', { claude: b.claude === true, retry: b.retry === true }); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'fix-request' && p[4]) { const f = path.join(runDir(site.id, p[4]), 'fix-request.md'); return fs.existsSync(f) ? send(res, 200, fs.readFileSync(f, 'utf8'), TYPES['.md']) : send(res, 404, { error: 'No fix request for that run.' }); }
     if (req.method === 'GET' && p[3] === 'report' && TABS.includes(p[4])) return send(res, 200, report(site, p[4], templates()[p[4]], getState(site.id)), TYPES['.md']);
 

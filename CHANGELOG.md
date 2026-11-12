@@ -3,6 +3,28 @@
 All notable changes to WPE QA Checklist. Versions follow [semantic versioning](https://semver.org/); each one is
 tagged `vX.Y.Z` with a GitHub release.
 
+## Unreleased
+
+### Added
+- **Answer Claude in the app.** When a "Have Claude fix these" run needs your decision, the tab shows a
+  **Claude needs your answer** box with each question. **Send answer and continue** backs up again, continues the
+  same Claude Code conversation with your answer, and re-checks the tab. Items waiting for you show
+  **Claude has a question** and are left out of **Apply fixes (N)**; the fix history keeps each question and answer.
+- Command line: `fix … --claude` prints Claude's questions; `answer <site> <tab> <fix-run-id> "<answer>" --yes`
+  sends the answer.
+- **Retry fix request (N).** Once approved items are in a fix request, Apply fixes no longer offers them (until the
+  checks run again), so the button disappeared and there was no way to send them to Claude. Now, when nothing else
+  is waiting, the button reads **Retry fix request (N)** and opens the same confirmation window with those items.
+  Command line: `fix … --yes --retry`.
+- Tests for reading Claude's verdicts and questions (`test/claude.test.mjs`) and for which items a fix run plans
+  (`test/fixers.test.mjs`).
+
+### Fixed
+- A headless Claude fix run could stop to ask for a go-ahead (it read the repository's interactive `CLAUDE.md`
+  workflow), end without fixing anything, and leave its question only in the run log. It's now told that the
+  approval is already given and to report a `question` per item instead; a run that still ends on a question is
+  shown as one. Runs keep their Claude session, so the conversation can continue.
+
 ## 0.2.1 — 2026-11-03
 
 Still requires **Greenlight v0.2.0 or newer**.

@@ -54,6 +54,17 @@
       <pre id="runLog" aria-live="polite"></pre>
     </div>
 
+    <section class="askpanel" id="askPanel" hidden aria-labelledby="askTitle">
+      <h3 id="askTitle">Claude needs your answer</h3>
+      <p class="askmeta" id="askMeta"></p>
+      <ol class="asklist" id="askList"></ol>
+      <label class="asklabel" for="askAnswer">Your answer</label>
+      <textarea id="askAnswer" rows="4" placeholder="Answer Claude here. It continues the same conversation, so it remembers what it found."></textarea>
+      <p class="askmeta" id="askNote"></p>
+      <p class="err" id="askErr" hidden></p>
+      <div class="askactions"><button class="btn primary" type="button" id="askSend">Send answer and continue</button></div>
+    </section>
+
     <div class="counts" id="counts"></div>
     <details class="history" id="fixHistory" hidden><summary>Fix history & backups</summary><div id="fixRuns"></div></details>
     <nav class="secnav" id="secNav" aria-label="Sections"></nav>

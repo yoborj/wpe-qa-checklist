@@ -217,6 +217,10 @@ against one of those files instead of SSH, start it with `WPEQA_GREENLIGHT_FIXTU
      judgment calls). Copy it from **Fix history and backups** and hand it to Claude or a developer.
 5. **Fix history and backups** lists every fix run with its backup path and **Copy restore
    commands** (database import + theme/plugins restore).
+6. Items left in a fix request aren't offered again until the checks run again (so the same request
+   isn't made twice). When nothing else is waiting, the button becomes **Retry fix request (N)**: the
+   same confirmation window, with those items, so you can run them again (e.g. with Claude) without
+   re-running the checks first. Command line: `fix <site> <tab> --yes --retry`.
 
 Automatic fixes (everything else goes to the fix request): turn comments off · search engine
 visibility on/off · rename "Uncategorized" · trash Hello World / Sample Page · permalinks to post
@@ -252,7 +256,17 @@ Everything the buttons do is also on the command line: `node bin/wpeqa.mjs help`
 In the web app, the confirmation window has **Have Claude fix these** for items the app can't
 fix by itself: after the backup and automatic fixes it starts a headless Claude Code run on this
 Mac (your account) with the fix request and the production rules, streams its progress into the
-log, and marks each item fixed (then verified by a re-check) or skipped.
+log, and marks each item fixed (then verified by a re-check), skipped, or **asked you**.
+
+**When Claude needs your decision** (which email should stay public, whether to use an insurer's
+logo…), it doesn't stop and wait in a window you can't see: it does what it safely can, then the
+tab shows a **Claude needs your answer** box under the run log with each question. Type your answer
+and press **Send answer and continue**: the app backs up again, continues the *same* Claude
+conversation (it remembers what it found), then re-checks the tab. If it asks again, a new box
+appears. Those items show **Claude has a question** and don't count in **Apply fixes (N)** until you
+answer. **Fix history and backups** keeps each question and your answer. From the command line:
+`fix … --claude` prints the questions, and `answer <site> <tab> <fix-run-id> "<answer>" --yes`
+sends the answer.
 
 ## Requirements
 

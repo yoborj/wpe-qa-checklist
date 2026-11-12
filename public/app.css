@@ -103,6 +103,19 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
 .bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--btn-a), var(--btn-b)); transition: width .4s; }
 .runpanel pre { margin: 0; max-height: 230px; overflow: auto; font: 13.5px/1.6 var(--mono); color: var(--body); white-space: pre-wrap; }
 
+/* Claude's questions from a fix run, answered in place */
+.askpanel { background: var(--surface); border: 1px solid var(--accent); border-left-width: 5px; border-radius: var(--r); padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow); display: grid; gap: 10px; }
+.askpanel h3 { margin: 0; font-size: 18px; color: var(--ink); }
+.askmeta { margin: 0; color: var(--faint); font-size: 14px; }
+.asklist { margin: 0; padding-left: 22px; display: grid; gap: 12px; }
+.asklist b { color: var(--ink); }
+.askq { margin: 4px 0 0; white-space: pre-wrap; color: var(--body); }
+.asklabel { font-weight: 700; color: var(--ink); font-size: 14.5px; }
+.askpanel textarea { width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 13px; }
+.askpanel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
+.askactions { display: flex; justify-content: flex-end; }
+.qa-line { white-space: pre-wrap; }
+
 /* Count tiles */
 .counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 0 0 30px; }
 .count { display: grid; gap: 2px; padding: 14px 18px; border-radius: 14px; border: 1px solid transparent; font-variant-numeric: tabular-nums; }
@@ -163,6 +176,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
 .fixstate { font-size: 13.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 .fs-verified { background: var(--pass-soft); color: var(--pass); } .fs-applied { background: var(--warn-soft); color: var(--warn); }
 .fs-failed { background: var(--fail-soft); color: var(--fail); } .fs-manual { background: var(--accent-soft); color: var(--accent); }
+.fs-question { background: var(--warn-soft); color: var(--warn); }
 
 /* How to fix */
 .item-suggest {
