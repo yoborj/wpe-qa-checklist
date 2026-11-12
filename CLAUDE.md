@@ -80,6 +80,19 @@ After Launch until then.
    installs/activates the Redirection plugin if needed, moves kept pages back (with a 301 from where they
    were), adds the other 301s, and checks every old URL. Report what was verified and the backup path.
 
+## Read-only report (for a boss or a client)
+
+The web app's **Generate report** button does this by itself (it builds the snapshot and has headless Claude Code
+publish it). When the person asks you instead:
+
+1. `node bin/wpeqa.mjs snapshot <site>` builds `data/reports/<site>/`: `index.html` (the app's own page in read-only
+   mode: views only, no action buttons, notes as text), `app.css`, `app.js`, `snapshot.js` (the data) and `shots/`.
+2. Publish it with the Artifact tool as a **new** artifact (no `url`): `file_path` = `data/reports/<site>/index.html`,
+   `files` = every other file in that folder at the same relative path (`app.css`, `app.js`, `snapshot.js`,
+   `shots/<name>`), `icon` "checklist". Every report gets its own link; earlier ones stay as they were.
+3. `node bin/wpeqa.mjs snapshot <site> --link <url>` adds it to the site's list of reports (shown in the web app).
+4. Tell the person the link is private until they share it from the page's Share menu.
+
 ## Rules that always apply
 
 - These are **production** sites. Read-only commands (`sites`, `add`, `run`, `status`, `report`,

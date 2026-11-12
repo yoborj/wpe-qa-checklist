@@ -3,7 +3,7 @@
 :root {
   --bg: #F3F5FA; --bg-glow: #E7ECFB; --surface: #FFFFFF; --surface-2: #F7F8FC; --ink: #0F172A; --body: #334155; --faint: #64748B; --line: #E4E8F0; --line-2: #CFD6E2;
   --accent: #4F5BF1; --accent-2: #8B5CF6; --accent-ink: #FFFFFF; --accent-soft: #ECEEFF; --btn-a: #4F5BF1; --btn-b: #8B5CF6;
-  --pass: #0E8A55; --pass-soft: #DDF5E9; --fail: #D1293F; --fail-soft: #FDE7EA; --warn: #B26B00; --warn-soft: #FEF1D7; --na: #64748B; --na-soft: #EEF1F6; --todo: #475569;
+  --pass: #0E8A55; --pass-soft: #DDF5E9; --fail: #D1293F; --fail-soft: #FDE7EA; --warn: #B26B00; --warn-soft: #FEF1D7; --pending: #C2410C; --pending-soft: #FFEDD5; --na: #64748B; --na-soft: #EEF1F6; --todo: #475569;
   --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 6px 18px -8px rgba(15, 23, 42, .12);
   --shadow-lift: 0 2px 4px rgba(15, 23, 42, .06), 0 14px 30px -12px rgba(15, 23, 42, .22);
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -14,7 +14,7 @@
 @media (prefers-color-scheme: dark) { :root {
   --bg: #0B0F17; --bg-glow: #141A33; --surface: #131925; --surface-2: #182030; --ink: #F1F5FB; --body: #CBD3DF; --faint: #8D98AA; --line: #222B3A; --line-2: #313C4F;
   --accent: #8A93FF; --accent-2: #B79CFF; --accent-ink: #0B0F1E; --accent-soft: #1F2546; --btn-a: #5A5FF0; --btn-b: #8D52F0;
-  --pass: #4BD99A; --pass-soft: #10291E; --fail: #FF7D8E; --fail-soft: #331720; --warn: #F5C25C; --warn-soft: #302410; --na: #8D98AA; --na-soft: #1C2330; --todo: #AEB8C7;
+  --pass: #4BD99A; --pass-soft: #10291E; --fail: #FF7D8E; --fail-soft: #331720; --warn: #F5C25C; --warn-soft: #302410; --pending: #FB923C; --pending-soft: #351B0C; --na: #8D98AA; --na-soft: #1C2330; --todo: #AEB8C7;
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 22px -10px rgba(0, 0, 0, .55);
   --shadow-lift: 0 2px 6px rgba(0, 0, 0, .35), 0 18px 36px -14px rgba(0, 0, 0, .7);
   color-scheme: dark; } }
@@ -117,7 +117,14 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
 .qa-line { white-space: pre-wrap; }
 
 /* Count tiles */
-.counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 0 0 30px; }
+.counts { display: grid; gap: 14px; margin: 0 0 30px; }
+.count-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+/* Tile panels: Checklist and Fixes. */
+.countgroup { display: grid; gap: 12px; padding: 14px 16px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.countgroup-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.countgroup h3 { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
+.countgroup small { color: var(--faint); font-size: 14px; }
+.countgroup.is-flagged small { color: var(--fail); font-weight: 700; }
 .count { display: grid; gap: 2px; padding: 14px 18px; border-radius: 14px; border: 1px solid transparent; font-variant-numeric: tabular-nums; }
 .count b { font-size: 28px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; }
 .count span { font-size: 14px; font-weight: 600; opacity: .85; }
@@ -130,8 +137,12 @@ button.count:hover:not(:disabled) { border-color: currentColor; }
 button.count[aria-pressed="true"] { border-color: currentColor; box-shadow: 0 0 0 2px currentColor inset; }
 button.count:disabled { cursor: default; opacity: .55; }
 .c-all { background: var(--surface); border-color: var(--line-2); color: var(--ink); }
-.c-manual { background: var(--surface-2); border-color: var(--line); color: var(--body); }
-.c-approved { background: var(--accent-soft); color: var(--accent); }
+/* Needs Attention: quiet at 0, solid red while anything needs a decision. */
+.c-decide { background: var(--surface); border-color: var(--line-2); color: var(--faint); }
+.c-decide.is-flagged { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+button.count.c-decide.is-flagged[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--fail-soft); }
+/* Fix Failed (approved, not fixed yet): orange, a warning that isn't To Look At's amber. */
+.c-approved { background: var(--pending-soft); color: var(--pending); }
 .c-done { background: var(--pass-soft); color: var(--pass); }
 .c-declined { background: var(--surface); border-color: var(--line-2); color: var(--faint); }
 .c-auto { background: var(--surface); border-color: var(--line); color: var(--accent); }
@@ -151,6 +162,17 @@ button.count:disabled { cursor: default; opacity: .55; }
 .item[data-status="warn"]::before { background: var(--warn); }
 .item[data-status="pass"]::before { background: var(--pass); }
 .item[data-status="na"]::before { background: var(--na-soft); }
+/* Flagged: it fails or needs a look and has no Approve / Decline yet. Ring + flag bar in the status color. */
+.item.is-flagged { border-color: var(--fail); box-shadow: 0 0 0 1px var(--fail), var(--shadow-lift); }
+.item.is-flagged[data-status="warn"] { border-color: var(--warn); box-shadow: 0 0 0 1px var(--warn), var(--shadow-lift); }
+.flagbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: -8px -12px 4px -16px; padding: 8px 14px; border-radius: 10px; background: var(--fail-soft); color: var(--fail); font-size: 14.5px; }
+.item[data-status="warn"] .flagbar { background: var(--warn-soft); color: var(--warn); }
+.flagbar b { font-weight: 800; letter-spacing: .01em; }
+/* A card you just decided on, kept in place until you change the view. */
+.movedbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: -8px -12px 4px -16px; padding: 8px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 14.5px; }
+.movedbar b { font-weight: 800; }
+.movedbar span { color: var(--body); }
+.flagbar span { color: var(--body); }
 .item-main { min-width: 0; display: grid; gap: 6px; }
 .item-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--ink); font-weight: 750; font-size: 18.5px; letter-spacing: -.01em; line-height: 1.35; }
 .chip { font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--na-soft); color: var(--faint); letter-spacing: 0; }
@@ -190,7 +212,7 @@ button.count:disabled { cursor: default; opacity: .55; }
 .fs-verified { background: var(--pass-soft); color: var(--pass); } .fs-applied { background: var(--warn-soft); color: var(--warn); }
 .fs-failed { background: var(--fail-soft); color: var(--fail); } .fs-manual { background: var(--accent-soft); color: var(--accent); }
 .fs-question { background: var(--warn-soft); color: var(--warn); }
-.fs-approved { background: var(--accent-soft); color: var(--accent); } .fs-done { background: var(--pass-soft); color: var(--pass); }
+.fs-approved { background: var(--pending-soft); color: var(--pending); } .fs-done { background: var(--pass-soft); color: var(--pass); }
 .fs-declined { background: var(--surface-2); color: var(--faint); border: 1px solid var(--line-2); }
 
 /* How to fix */
@@ -351,6 +373,7 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .sbadge { min-width: 22px; padding: 1px 7px; border-radius: 999px; font-size: 12.5px; text-align: center; background: var(--na-soft); color: var(--faint); font-variant-numeric: tabular-nums; }
 .sbadge.bad { background: var(--fail-soft); color: var(--fail); }
 .sbadge.ok { background: var(--pass-soft); color: var(--pass); }
+.secnav button.is-empty { opacity: .5; }
 .secnav button[aria-pressed="true"] .sbadge { background: color-mix(in srgb, var(--surface) 22%, transparent); color: var(--surface); }
 .sec-empty { margin: 0 0 24px; padding: 22px 26px; background: var(--surface); border: 1px dashed var(--line-2); border-radius: var(--r); color: var(--faint); }
 
@@ -382,3 +405,20 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .pc-bad { color: var(--ink); }
 #prodDialog { width: min(620px, calc(100vw - 32px)); }
 .tabs .badge.lock { background: var(--na-soft); color: var(--faint); font-size: 11px; }
+
+/* Read-only report (wpeqa snapshot): views only. Tiles, tabs, sections, details and screenshots still work. */
+body.readonly .site-picker, body.readonly #runTool, body.readonly #applyFixes, body.readonly #reportLink, body.readonly #genReport, body.readonly #reportMenu,
+body.readonly #askPanel, body.readonly #runPanel, body.readonly .fixrun .row,
+body.readonly #sections button, body.readonly #sections input, body.readonly #sections select, body.readonly #sections textarea { display: none !important; }
+.item-note { margin: 0; color: var(--body); font-size: 15px; }
+.item-note b { color: var(--faint); font-weight: 700; }
+.snapnote { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--faint); font-size: 14px; }
+.snapnote b { color: var(--ink); font-weight: 700; }
+
+/* Reports menu: every published read-only report, newest first. */
+.reportmenu { position: relative; }
+.reportlist { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 300px; max-width: calc(100vw - 32px); max-height: 320px; overflow: auto; display: grid; gap: 2px; padding: 6px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: var(--shadow-lift); }
+.reportitem { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 14.5px; }
+.reportitem:hover, .reportitem:focus-visible { background: var(--accent-soft); }
+.reportitem b { white-space: nowrap; font-weight: 700; }
+.reportitem span { color: var(--accent); font-size: 13.5px; white-space: nowrap; }

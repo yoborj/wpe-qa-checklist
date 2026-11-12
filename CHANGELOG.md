@@ -6,12 +6,23 @@ tagged `vX.Y.Z` with a GitHub release.
 ## Unreleased
 
 ### Added
+- **Generate report.** A toolbar button that publishes an exact, view-only copy of the site's page (same tabs, tiles,
+  cards and screenshots; no action buttons, notes as text) as a private claude.ai artifact, through Claude Code. Each
+  report is a new artifact with its own link; **Reports (N) ▾** in the toolbar lists them all with their dates,
+  newest first. Command line: `snapshot <site>` builds it, `snapshot <site> --link <url>` records a published one. The old
+  **Report** button (the Markdown summary) is now **Markdown**.
+- **Decided cards stay put.** An approved item stays in **Needs Attention** until its fix has run (then Fixed, or Fix
+  Failed if the check still fails). Decline or Confirm fix no longer makes a card vanish from the view you're in: it
+  stays with a **Moved to …** note until you pick another tile, tab or site. The counts update right away.
+- **Flagged items stand out.** Items that fail or need a look with no Approve / Decline yet are flagged: a solid red
+  **Needs Attention** tile (in the Flagged panel), a ring in the status color and a **⚑ Needs your decision** bar on
+  each card. `status` lists them under "Needs attention".
 - **Confirm fix.** For an approved fix that's done but that its check can't verify, **Confirm fix** on the item
-  moves it to Done (**Done · confirmed by you**) until a later run finds something different. Command line:
+  moves it to Fixed (**Done · confirmed by you**) until a later run finds something different. Command line:
   `confirm-fix <site> <tab> <item-id…> [--undo]`. Confirmed items are left out of Apply fixes and retries.
-- **Approved, not done / Done / Declined views.** Decided items leave the main list, the count tiles and the tab's red badge, so
+- **Fix Failed / Fixed / Declined views.** Decided items leave the main list, the count tiles and the tab's red badge, so
   **All** and **Needs attention** show only what still needs a decision. Each checklist gets **Approved (N)** (fix in
-  progress), **Done (N)** (approved and passing now) and **Declined (N)**, as filter buttons and clickable count tiles.
+  progress), **Fixed (N)** (approved and passing now) and **Declined (N)**, as filter buttons and clickable count tiles.
   `status` groups items the same way, and `approve --all-failing` only approves items not decided yet (it no longer
   overrides a decline).
 - **Answer Claude in the app.** When a "Have Claude fix these" run needs your decision, the tab shows a
@@ -24,13 +35,21 @@ tagged `vX.Y.Z` with a GitHub release.
   checks run again), so the button disappeared and there was no way to send them to Claude. Now, when nothing else
   is waiting, the button reads **Retry fix request (N)** and opens the same confirmation window with those items.
   Command line: `fix … --yes --retry`.
-- Tests for reading Claude's verdicts and questions (`test/claude.test.mjs`) and for which items a fix run plans
-  (`test/fixers.test.mjs`).
+- Tests for reading Claude's verdicts and questions (`test/claude.test.mjs`), for which items a fix run plans
+  (`test/fixers.test.mjs`), the email, search and GA4 checks and Confirm fix.
 
 ### Changed
+- **GTM and GA4 are two clearly separate cards** in QA — Before Launch: **Google Tag Manager (GTM) container** (a GTM-…
+  container in the page source) and **Google Analytics 4 (GA4) tag** (a G-… measurement ID on the page or inside the
+  site's GTM container, read from Google's gtm.js). The GA4 card no longer passes on a GTM ID alone. The new names live
+  in `scripts/import-sheet.py` (RELABEL), so re-importing the Audit Sheet keeps them; item ids are unchanged.
 - **The count tiles are the filters.** The All / Needs attention / Manual / Approved / Done / Declined buttons are gone:
-  click a count tile (new **all** and **manual** tiles included) to show only those items; click it again or **all**
-  to show everything. The Old → New URLs tiles filter its page list the same way.
+  click a count tile to show only those items; click it again or **All** to show everything. Tiles in two panels: **Checklist** (All = every item ·
+  Passed, Fixed items included · Manual To Do · N/A · Automatic) and **Flagged** (Needs Attention: failed and to-look-at
+  items with no decision, replacing the Failed and To Look At tiles · Fix Failed (orange: a fix ran and the check still fails) · Fixed · Declined). Every tile
+  is a part of All and the list uses the same rule as the counts, so they add up exactly. Manual To Do lists manual items
+  still to mark (it replaces "to do"). The section pills follow the picked tile: each shows how many cards that section has
+  for it, so the section All always equals the tile (before, they showed the section's total items or a ✓). The Old → New URLs tiles filter its page list the same way.
 - **QA — Before Launch → Search page** verifies itself: it passes when the site has a search form, or when it has
   none and WordPress's `/?s=` results page is turned off (redirects or answers 404/410). It needs a look only when
   there's no form but `/?s=` still shows results.

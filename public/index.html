@@ -41,7 +41,12 @@
       <button class="btn fixbtn" id="applyFixes" type="button" hidden>Apply fixes</button>
       <div class="lastrun" id="lastRun"></div>
       <div class="spacer"></div>
-      <a class="btn ghost" id="reportLink" target="_blank" rel="noopener">Report</a>
+      <a class="btn ghost" id="reportLink" target="_blank" rel="noopener" title="A Markdown summary of this tab, to paste into the sheet, a ticket or a message">Markdown</a>
+      <button class="btn" id="genReport" type="button" title="Publish a read-only copy of this page (views only) to share. Each report gets its own link.">Generate report</button>
+      <div class="reportmenu" id="reportMenu" hidden>
+        <button class="btn ghost" id="reportsBtn" type="button" aria-expanded="false" aria-controls="reportList">Reports</button>
+        <div class="reportlist" id="reportList" hidden role="list"></div>
+      </div>
     </div>
 
     <div class="runpanel" id="runPanel" hidden>

@@ -14,6 +14,7 @@ import { report } from './lib/report.mjs';
 import { URLS_TAB, setUrlRow, recheckKeep, planRedirects, effective } from './lib/redirects.mjs';
 import { liveChecks, confirmLive } from './lib/live.mjs';
 import { GREENLIGHT_MIN_VERSION } from './lib/greenlight.mjs';
+import { publishReport, reportList } from './lib/snapshot.mjs';
 const JOB_TABS = [...TABS, URLS_TAB];
 
 const PORT = +process.env.PORT || 4646;
@@ -46,7 +47,7 @@ function startJob(site, tab, kind, opts = {}) {
   runs.set(id, run);
   const log = runLogger(runDir(site.id, id), l => { run.log.push(l); emit(run, 'log', l); });
   const progress = p => { run.progress = Math.max(run.progress, Math.min(1, p)); emit(run, 'progress', run.progress); };
-  const job = kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude, reply: opts.reply || null, retry: !!opts.retry }).then(r => r.meta) : kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress });
+  const job = kind === 'report' ? publishReport(site.id, log).then(r => { progress(1); return r; }) : kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude, reply: opts.reply || null, retry: !!opts.retry }).then(r => r.meta) : kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress });
   job.then(meta => { run.result = meta; emit(run, 'done', meta); })
     .catch(e => { log(`Stopped: ${e.message}`); run.error = e.message; emit(run, 'failed', { error: e.message }); })
     .finally(() => { run.done = true; for (const l of run.listeners) l.end(); run.listeners.clear(); setTimeout(() => runs.delete(id), 30 * 60 * 1000); });
@@ -73,11 +74,13 @@ const server = http.createServer(async (req, res) => {
       // Imported files are sent without their parsed rules (the rows carry what the page needs).
       const state = getState(site.id); const L = state.urls?.legacy;
       if (L?.files) L.files = L.files.map(({ rules, ...f }) => ({ ...f, count: rules?.length ?? f.count }));
-      return send(res, 200, { site, state, active });
+      return send(res, 200, { site, state, active, reports: reportList(site.id) });
     }
     if (req.method === 'DELETE' && p[1] === 'sites' && !p[3]) { deleteSite(site.id); return send(res, 200, { ok: true }); }
     if (req.method === 'PUT' && p[3] === 'items' && TABS.includes(p[4]) && p[5]) return send(res, 200, setItem(site.id, p[4], p[5], await body(req)).tabs[p[4]].items[p[5]]);
     if (req.method === 'POST' && p[3] === 'run' && JOB_TABS.includes(p[4])) { const r = startJob(site, p[4], 'check'); return send(res, 200, { runId: r.id }); }
+    // Generate report: build the read-only snapshot and publish it as a new artifact (its own link) through Claude Code.
+    if (req.method === 'POST' && p[3] === 'report') { const r = startJob(site, 'report', 'report'); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'live-check') return send(res, 200, await liveChecks(site));
     if (req.method === 'POST' && p[3] === 'confirm-live') { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the live site first.' }); return send(res, 200, await confirmLive(site)); }
     if (req.method === 'POST' && p[3] === 'urls' && p[4] === 'import') {

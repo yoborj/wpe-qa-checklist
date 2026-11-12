@@ -35,30 +35,49 @@ Automatic items show the status Run Tool found (read-only; a wrong finding is ha
 **Decline**). Manual items, the ones no tool can check, have **Pass / Fail / Look / N/A / To do** buttons.
 Every item has a note. Items that fail or need a look
 get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the approved ones with a backup
-first (see below). **Report** opens a
+first (see below). **Markdown** opens a
 Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
-**The count tiles are the filters.** Click a tile to show only those items (it gets an outline), click it again or
-**All** to show everything; empty tiles can't be picked. **All**, the status tiles (passed, failed, to look at, n/a,
-to do) and **manual** (items no tool can check) count only what still needs a decision, and so does the tab's red badge.
-Once you decide on an item it moves to one of three tiles of its own:
+**The count tiles are the filters**, in two panels:
+
+- **Checklist**, where the site stands: **All** (every item) · **Passed** (passes now, Fixed items included) ·
+  **Manual To Do** (manual items, the ones no tool checks, still to mark) · **N/A** · **Automatic** (items Run Tool
+  checks). The heading says how many applicable items pass.
+- **Flagged**, what needs a decision and how the fixes went: **Needs Attention** · **Fix Failed** (orange) · **Fixed** ·
+  **Declined**. The heading says how many wait for Approve / Decline.
+
+All is every item and every other tile is a part of it, so the counts add up (passed + manual to do + N/A + the
+flagged tiles = all). Click a tile to show only those items (it gets an outline), click it again or **All** to show
+everything; empty tiles are dimmed. The tiles and the list use the same rule, so a tile always shows exactly as many
+cards as its number.
+
+**Flagged items stand out.** Anything that fails or needs a look and has no Approve / Decline yet is flagged: the
+**Needs Attention** tile turns solid red with the count (click it to see just those; it covers both failed items and
+ones to look at), each flagged card gets a ring in its status color and a **⚑ Needs your decision** bar across the top,
+and the tab's red badge counts them. Approve or Decline the fix and the flag goes away. An **approved** item stays in
+**Needs Attention** (its pill says where the fix stands) until the fix has run; a **declined** one moves to Declined but
+stays where it is, with a **Moved to …** note, until you pick another tile, tab or site. The tile numbers update right
+away. The section pills below follow the picked tile: each one shows how many cards that section has for it (so the
+section **All** always equals the tile's number), red when any of them need attention, green when they all pass,
+dimmed at 0.
 
 | Tile | Items | Pill on each item |
 |---|---|---|
-| **approved, not done** | Fix approved, still failing or flagged | **Approved · not applied yet** · **In fix request · needs a developer** · **Claude skipped it · in fix request** · **Claude didn’t finish · in fix request** · **Claude has a question · answer above** · **Fix applied · still flagged** / **Claude fixed it · still flagged** · **Fix failed** |
-| **done** | Fix approved and the check passes now, or you confirmed it | **Done · fixed by the app** · **Done · fixed by Claude** · **Done · passes now** (fixed some other way, or by another item's fix) · **Done · confirmed by you** |
-| **declined** | Fix declined and still failing or flagged (a wrong finding, or not worth fixing) | **Declined · won’t fix** |
+| **Needs Attention** | Fails or needs a look and isn't fixed or declined: no decision yet, or approved but the fix hasn't run (or is in a fix request, or waiting on your answer to Claude) | the **⚑ Needs your decision** bar, or **Approved · not applied yet** · **In fix request · needs a developer** · **Claude skipped it · in fix request** · **Claude didn’t finish · in fix request** · **Claude has a question · answer above** |
+| **Fix Failed** | Approved, a fix ran, and the check still fails | **Fix applied · still flagged** / **Claude fixed it · still flagged** · **Fix failed** |
+| **Fixed** | Fix approved and the check passes now, or you confirmed it | **Done · fixed by the app** · **Done · fixed by Claude** · **Done · passes now** (fixed some other way, or by another item's fix) · **Done · confirmed by you** |
+| **Declined** | Fix declined and still failing or flagged (a wrong finding, or not worth fixing) | **Declined · won’t fix** |
 
 **Confirm fix.** Most checks verify a fix by themselves on the next run. When a fix is done but its check can't tell
-(a judgment call it keeps flagging), press **Confirm fix** on the approved item: it moves to **done** with
+(a judgment call it keeps flagging), press **Confirm fix** on the approved item: it moves to **Fixed** with
 **Done · confirmed by you**, and stays there until a later run finds something different (then it's back in
-**approved, not done** for a new look). Press it again (**Confirmed ✓**) to undo. Command line:
+**Fix Failed** for a new look). Press it again (**Confirmed ✓**) to undo. Command line:
 `confirm-fix <site> <tab> <item-id…> [--undo]`.
 
 Undo a decision from its tile (press Approve or Decline again) and the item is back in the main list. A declined item
-that passes later goes back to normal; a done item that fails again moves to approved, not done. `status` on the
-command line groups items the same way. On **Old → New URLs** the tiles (all, same URL, URL changed, need attention,
-approved, done) filter the page list the same way.
+that passes later goes back to normal; a fixed item that fails again moves to Fix Failed. `status` on the
+command line groups items the same way. On **Old → New URLs** the tiles (All, Same URL, URL Changed, Need Attention,
+Approved, Done) filter the page list the same way.
 
 Elementor, YOOtheme and Tailwind sections are kept but marked N/A automatically unless the site uses them.
 
@@ -251,6 +270,20 @@ update WordPress core · set the admin email · replace the staging domain in th
 (`wp search-replace`, dry run first, GUIDs untouched) · turn on Greenlight's recommended security features. They live in `lib/fixers.mjs`.
 
 Plain **Run Tool** runs never change the site, so they don't take a backup.
+
+## Read-only report
+
+To show the results to someone who shouldn't change anything (a boss, a client), press **Generate report** in the
+toolbar. The app builds an exact copy of the site's page in read-only mode, with the saved data and screenshots, and
+Claude Code (signed in on this Mac) publishes it as a private claude.ai artifact, in about half a minute. The report has
+the same tabs, tiles, sections, cards, details and screenshots, all clickable to look around, and no action buttons: no
+Run Tool, Apply fixes, Approve / Decline, Confirm fix, notes boxes or settings (notes show as text). Its header and its
+title say when it was generated.
+
+Every report is a new artifact with its own link, a fixed snapshot of that moment. **Reports (N) ▾** in the toolbar lists
+them all with their dates, newest first (saved in `data/reports/<site>/reports.json`). Share a
+report from its page's Share menu. From the command line: `snapshot <site>` builds it, Claude publishes it, and
+`snapshot <site> --link <url>` adds it to the list.
 
 ## Run it from Claude Code
 

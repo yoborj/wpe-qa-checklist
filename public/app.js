@@ -17,16 +17,27 @@ const legacyPending = u => { const byId = new Map((u.rows || []).map(m => [m.id,
 const urlsPending = rows => rows.filter(r => r.decision === 'approve' && eff(r).status !== 'none' && eff(r).target && !(r.applied?.state === 'verified' && r.applied.target === eff(r).target && r.applied.choice === eff(r).choice));
 const STATUS = [['pass', 'Pass'], ['fail', 'Fail'], ['warn', 'Look'], ['na', 'N/A'], ['todo', 'To do']];
 const LABEL = { pass: 'Passed', fail: 'Failed', warn: 'Needs a look', na: 'N/A', todo: 'To do' };
-const TILE = { pass: 'passed', fail: 'failed', warn: 'to look at', na: 'n/a', todo: 'to do' };
+const TILE = { pass: 'Passed', fail: 'Failed', warn: 'To Look At', na: 'N/A', todo: 'Manual To Do' };
 
 const $ = id => document.getElementById(id);
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (v == null || v === false) continue; if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? '' : v); } for (const c of kids.flat()) if (c != null) e.append(c); return e; };
-const api = async (path, opts = {}) => { const r = await fetch('/api' + path, { headers: { 'content-type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
+// Read-only report: a snapshot built by `wpeqa snapshot` carries its data in window.WPEQA_SNAPSHOT. The page then reads
+// from it, refuses every change, and shows views only (no action buttons, notes as text).
+const SNAP = window.WPEQA_SNAPSHOT || null;
+function snapApi(path, opts) {
+  if ((opts.method || 'GET') !== 'GET') throw new Error('This is a read-only report.');
+  if (path === '/config') return SNAP.config;
+  if (path === '/checklists') return SNAP.templates;
+  if (path === '/sites') return SNAP.sites;
+  if (path === `/sites/${SNAP.site.site.id}`) return structuredClone(SNAP.site);
+  throw new Error('Not part of this report.');
+}
+const api = async (path, opts = {}) => { if (SNAP) return snapApi(path, opts); const r = await fetch('/api' + path, { headers: { 'content-type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
 const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString(); };
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
 const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request', question: 'Claude asked you' };
 const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request', question: 'Claude has a question · answer above' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
-// The pill says where an item stands, in plain words. Approved, not done: what's happening with the fix. Done: how it
+// The pill says where an item stands, in plain words. Fix Failed: what's happening with the fix. Fixed: how it
 // got there. Declined: won't fix. The current check result wins over the last fix run (fix.toolAt is the finding that
 // run worked on), so a passing item is always Done and an old question stops asking for an answer.
 function fixPill(s) {
@@ -56,6 +67,8 @@ const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it 
 // Approved items an earlier fix run left in a fix request (same finding): "Retry fix request" runs them again.
 const retryFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && s.fix?.state === 'manual' && s.fix.toolAt === s.tool?.at; });
 let fixRetry = false;
+// Cards you just decided on stay in the current view (with a note) until you pick another tile, tab or site.
+const kept = new Set();
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
 let config = {}, templates = {}, sites = [], current = null, data = null, tab = store.get('wpeqa.tab') || 'qa-swarm', filter = 'all', stream = null;
@@ -63,6 +76,7 @@ let config = {}, templates = {}, sites = [], current = null, data = null, tab = 
 let secSel = (() => { try { return JSON.parse(store.get('wpeqa.sec') || '{}'); } catch { return {}; } })();
 
 async function boot() {
+  if (SNAP) document.body.classList.add('readonly');
   [templates, config] = await Promise.all([api('/checklists'), api('/config')]);
   if (config.version) { $('appVersion').textContent = 'v' + config.version; $('appVersion').title = `Reads Greenlight v${config.greenlightMin}+ security status`; }
   await loadSites(store.get('wpeqa.site'));
@@ -78,9 +92,15 @@ async function loadSites(select) {
 }
 
 async function openSite(id) {
+  if (id !== current?.id) kept.clear();
   store.set('wpeqa.site', id);
   data = await api('/sites/' + id); current = data.site;
   $('siteName').textContent = current.name;
+  // Published reports (each its own artifact): the Reports menu lists every one with its date, newest first.
+  const reports = data.reports || [], when = r => new Date(r.generatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  $('reportMenu').hidden = !reports.length; $('reportsBtn').textContent = `Reports (${reports.length}) ▾`;
+  $('reportList').replaceChildren(...reports.map((r, i) => el('a', { class: 'reportitem', role: 'listitem', href: r.url, target: '_blank', rel: 'noopener' },
+    el('b', { text: when(r) }), el('span', { text: i === 0 ? 'newest · open ↗' : 'open ↗' }))));
   $('siteHome').href = current.url; $('siteHome').textContent = current.url.replace(/^https?:\/\//, '') + (current.prodUrl ? ' (staging)' : '');
   $('siteProd').hidden = !current.prodUrl; if (current.prodUrl) { $('siteProd').querySelector('a').href = current.prodUrl; $('siteProd').querySelector('a').textContent = current.prodUrl.replace(/^https?:\/\//, ''); }
   $('siteInstall').replaceChildren(current.install
@@ -97,13 +117,19 @@ function statusOf(t, it) { return tabState(t).items[it.id]?.status || 'todo'; }
 //   approved: fix approved, still failing or flagged (in progress) · done: fix approved and the check passes now ·
 //   declined: fix declined, still failing or flagged. A declined item that passes later is back to normal; a done
 //   item that fails again is approved (in progress) again.
-const BUCKETS = { approved: 'Approved, not done', done: 'Done', declined: 'Declined' };
+const BUCKETS = { approved: 'Fix Failed', done: 'Fixed', declined: 'Declined' };
 function bucketOf(t, it) {
   const s = tabState(t).items[it.id]; if (!s?.decision) return null;
   const bad = ['fail', 'warn'].includes(s.status);
-  return s.decision === 'decline' ? (bad ? 'declined' : null) : bad ? (s.confirmed ? 'done' : 'approved') : s.status === 'pass' ? 'done' : null;
+  if (s.decision === 'decline') return bad ? 'declined' : null;
+  if (!bad) return s.status === 'pass' ? 'done' : null;
+  if (s.confirmed) return 'done';
+  // Approved and still failing: Fix Failed only once a fix has run and the check still fails (failed, applied but still
+  // flagged, or fixed earlier and failing again). Until then it stays in Needs Attention with its pill.
+  return fixRan(s) ? 'approved' : null;
 }
-const isBad = (t, it) => ['fail', 'warn'].includes(statusOf(t, it)) && !bucketOf(t, it);
+const fixRan = s => ['failed', 'applied', 'verified'].includes(s.fix?.state);
+const isBad = (t, it) => ['fail', 'warn'].includes(statusOf(t, it)) && !bucketOf(t, it); // = Needs Attention
 
 function render() {
   // Tabs with a badge for items that need attention.
@@ -111,13 +137,13 @@ function render() {
     if (t === 'urls') {
       const u = data.state.urls || {}; const byId = new Map((u.rows || []).map(m => [m.id, m]));
       const open = (u.rows || []).filter(r => eff(r).status !== 'none' && !r.decision).length + (u.legacy?.rows || []).filter(r => leff(r, byId).status === 'attention' && !r.decision).length;
-      return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, 'Old → New URLs', u.runs?.length ? el('span', { class: 'badge' + (open ? '' : ' ok'), text: open ? String(open) : '✓' }) : null);
+      return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; kept.clear(); store.set('wpeqa.tab', t); render(); } }, 'Old → New URLs', u.runs?.length ? el('span', { class: 'badge' + (open ? '' : ' ok'), text: open ? String(open) : '✓' }) : null);
     }
-    if (t === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return el('button', { role: 'tab', 'aria-selected': String(t === tab), title: 'Unlocks once the production site is confirmed live', onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, templates[t].title, el('span', { class: 'badge lock', text: '🔒' }));
+    if (t === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return el('button', { role: 'tab', 'aria-selected': String(t === tab), title: 'Unlocks once the production site is confirmed live', onclick: () => { tab = t; kept.clear(); store.set('wpeqa.tab', t); render(); } }, templates[t].title, el('span', { class: 'badge lock', text: '🔒' }));
     const tpl = templates[t]; const items = tpl.sections.flatMap(s => s.items);
     const bad = items.filter(i => isBad(t, i)).length;
     const ran = tabState(t).runs?.length;
-    return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
+    return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; kept.clear(); store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
   }));
   $('reportLink').hidden = tab === 'urls'; $('runTool').hidden = false;
   // Filters live on the count tiles; a filter from another kind of tab doesn't carry over.
@@ -141,20 +167,24 @@ function render() {
 
   const items = tpl.sections.flatMap(s => s.items);
   const inBucket = Object.fromEntries(Object.keys(BUCKETS).map(b => [b, items.filter(i => bucketOf(tab, i) === b).length]));
-  const counts = Object.fromEntries(Object.keys(LABEL).map(k => [k, items.filter(i => statusOf(tab, i) === k && !bucketOf(tab, i)).length]));
-  // The count tiles are the filters: All (everything not decided yet), each status, Manual, then the decided views.
-  const open = items.filter(i => !bucketOf(tab, i));
-  const manual = open.filter(i => !i.check).length;
-  const shown = { pass: counts.pass, fail: counts.fail, warn: counts.warn, na: counts.na, todo: counts.todo, manual, ...inBucket };
+  // Tile counts use the same rule as the list (tileHas). All is every item; every other tile is a part of it.
+  const n = key => items.filter(i => tileHas(i, key)).length;
+  const shown = Object.fromEntries(['all', 'pass', 'manualtodo', 'na', 'auto', 'decide', ...Object.keys(BUCKETS)].map(k => [k, n(k)]));
+  const needs = shown.decide;
   if (filter !== 'all' && !shown[filter]) filter = 'all';
+  // Two panels: Checklist (where the site stands) and Flagged (what needs a decision, and how the fixes went).
+  const fixed = inBucket.done, failedFix = inBucket.approved;
   $('counts').replaceChildren(
-    countTile('all', 'c-all', open.length, 'all', 'Everything still waiting for a decision (decided items are in their own tiles)'),
-    ...Object.keys(TILE).map(k => countTile(k, `c-${k}`, counts[k], TILE[k])),
-    countTile('manual', 'c-manual', manual, 'manual', 'Items no tool can check: mark them yourself'),
-    ...Object.keys(BUCKETS).filter(b => inBucket[b]).map(b => countTile(b, `c-${b}`, inBucket[b], BUCKETS[b].toLowerCase())),
-    el('div', { class: 'count c-auto', title: 'Items Run Tool checks automatically' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
+    countGroup('Checklist', `${shown.pass} of ${shown.all - shown.na} applicable items pass`, [
+      countTile('all', 'c-all', shown.all, 'All', 'Every item in this checklist, decided ones included'),
+      countTile('pass', 'c-pass', shown.pass, TILE.pass, 'Items that pass now, including Fixed ones'),
+      countTile('manualtodo', 'c-todo', shown.manualtodo, TILE.todo, 'Manual items (no tool checks them) still to mark: Pass, Fail, Look or N/A'),
+      countTile('na', 'c-na', shown.na, TILE.na),
+      countTile('auto', 'c-auto', shown.auto, 'Automatic', 'Items Run Tool checks automatically')]),
+    countGroup('Flagged', flaggedHint(items, needs, failedFix, fixed), [
+      countTile('decide', 'c-decide' + (needs ? ' is-flagged' : ''), needs, 'Needs Attention', 'Items that fail or need a look and have no Approve / Decline yet'),
+      ...Object.keys(BUCKETS).map(b => countTile(b, `c-${b}`, inBucket[b], BUCKETS[b]))], needs ? 'is-flagged' : ''));
 
-  renderSecNav(tpl);
   $('sections').replaceChildren(...tpl.sections.map(sec => {
     const rows = sec.items.map(it => itemRow(it));
     return el('section', { class: 'section', 'data-sec': sec.title }, el('h2', {}, sec.title, sec.appliesIf ? el('small', { text: { elementor: '· only when Elementor is active', yootheme: '· only for YOOtheme sites', tailwind: '· only for Tailwind builds', reference: '· needs a reference site' }[sec.appliesIf] }) : null), el('div', { class: 'items' }, rows));
@@ -162,47 +192,75 @@ function render() {
   applyFilter();
 }
 
-// Section switcher: one pill per section, badge = failed/flagged items in it.
+// Does this checklist item show under the picked tile? (The same rule the list uses.) All = not decided yet;
+// a status tile = not decided with that status; Manual To Do = not decided, checked by hand, not marked yet;
+// Fix Failed / Fixed / Declined = that decided view.
+// The one rule for "does this item count under / show for a tile" (`key`, default the picked tile). The tile numbers
+// and the list both use it, so they always agree. All = every item; Passed = passes now or Fixed; Needs Attention =
+// fails or needs a look with no decision yet; the Fixes tiles = that decided view.
+function tileHas(it, key = filter) {
+  const b = bucketOf(tab, it), st = statusOf(tab, it);
+  if (BUCKETS[key]) return b === key;
+  switch (key) {
+    case 'all': return true;
+    case 'pass': return st === 'pass' || b === 'done';
+    case 'decide': return !b && ['fail', 'warn'].includes(st);
+    case 'manualtodo': return !it.check && st === 'todo';
+    case 'auto': return !!it.check;
+    default: return st === key;
+  }
+}
+const itemShown = it => tileHas(it);
+// Where a card went after a decision, for the "Moved to …" note: its Flagged tile, or the Checklist tile it counts under.
+function movedTo(it) {
+  const b = bucketOf(tab, it); if (b) return BUCKETS[b];
+  const st = statusOf(tab, it);
+  return st === 'pass' ? TILE.pass : st === 'na' ? TILE.na : tileHas(it, 'decide') ? 'Needs Attention' : tileHas(it, 'manualtodo') ? TILE.todo : 'All';
+}
+
+// Section switcher: one pill per section. Its number is how many cards that section shows for the picked tile, so
+// "All" always equals the tile's number. Red when any of them fails or needs a look, green when they all pass.
 function renderSecNav(tpl) {
   const secs = tpl.sections;
   if (secSel[tab] && secSel[tab] !== 'all' && !secs.some(s => s.title === secSel[tab])) secSel[tab] = 'all';
-  if (!secSel[tab]) secSel[tab] = secs[0]?.title || 'all';
-  const pick = t => { secSel[tab] = t; store.set('wpeqa.sec', JSON.stringify(secSel)); renderSecNav(tpl); applyFilter(); window.scrollTo({ top: $('secNav').offsetTop - 90, behavior: 'smooth' }); };
+  if (!secSel[tab]) secSel[tab] = 'all';
+  const pick = t => { secSel[tab] = t; store.set('wpeqa.sec', JSON.stringify(secSel)); applyFilter(); window.scrollTo({ top: $('secNav').offsetTop - 90, behavior: 'smooth' }); };
   const badge = items => {
-    const st = items.map(i => statusOf(tab, i));
-    const bad = items.filter(i => isBad(tab, i)).length;
-    if (bad) return el('span', { class: 'sbadge bad', text: String(bad) });
-    if (st.every(x => x === 'na')) return el('span', { class: 'sbadge na', text: 'n/a' });
-    if (st.some(x => x === 'pass') && st.every(x => ['pass', 'na'].includes(x))) return el('span', { class: 'sbadge ok', text: '✓' });
-    return el('span', { class: 'sbadge', text: String(items.length) });
+    const shown = items.filter(itemShown); const st = shown.map(i => statusOf(tab, i));
+    const cls = shown.some(i => isBad(tab, i)) ? ' bad' : shown.length && st.every(x => x === 'pass') ? ' ok' : ''; // red: still needs a decision
+    return el('span', { class: 'sbadge' + cls, text: String(shown.length) });
   };
-  const all = secs.flatMap(s => s.items);
+  const count = items => items.filter(itemShown).length;
   $('secNav').replaceChildren(
-    el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === 'all'), onclick: () => pick('all') }, 'All', badge(all)),
-    ...secs.map(sec => el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === sec.title), class: sec.items.every(i => statusOf(tab, i) === 'na') ? 'is-na' : null, onclick: () => pick(sec.title) }, sec.title, badge(sec.items))));
+    el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === 'all'), onclick: () => pick('all') }, 'All', badge(secs.flatMap(s => s.items))),
+    ...secs.map(sec => el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === sec.title), class: count(sec.items) ? null : 'is-empty', title: count(sec.items) ? null : 'Nothing in this section for the picked tile', onclick: () => pick(sec.title) }, sec.title, badge(sec.items))));
 }
 
 function itemRow(it) {
   const s = tabState(tab).items[it.id] || {}; const status = s.status || 'todo';
-  const save = patch => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: patch }).then(v => { (data.state.tabs[tab] ||= { items: {}, runs: [] }).items[it.id] = v; render(); }).catch(e => alert(e.message));
+  const save = patch => { const wasShown = tileHas(it); return api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: patch }).then(v => { (data.state.tabs[tab] ||= { items: {}, runs: [] }).items[it.id] = v; if (wasShown) kept.add(it.id); render(); }).catch(e => alert(e.message)); };
   // Automatic items: the scan decides the status (read-only). Manual items: a person marks them.
   const auto = !!(it.check || s.tool);
-  const seg = auto
-    ? el('span', { class: `spill sp-${status}`, title: 'Set by Run Tool', text: s.tool ? LABEL[status] : 'Not run yet' })
+  const seg = auto || SNAP
+    ? el('span', { class: `spill sp-${status}`, title: auto ? 'Set by Run Tool' : 'Marked by hand', text: auto && !s.tool ? 'Not run yet' : LABEL[status] })
     : el('div', { class: 'seg', role: 'group', 'aria-label': `Status of ${it.title}` }, STATUS.map(([k, label]) => el('button', { type: 'button', 'data-s': k, 'aria-pressed': String(status === k), title: LABEL[k], text: label, onclick: () => save({ status: k }) })));
   const src = auto
     ? el('span', { class: 'src', text: s.tool ? `automatic · ${ago(s.tool.at)}` : 'automatic' })
     : el('span', { class: 'src', text: s.source === 'manual' ? `you · ${s.at ? ago(s.at) : ''}` : 'manual check' });
   const details = s.tool?.details?.length ? el('details', {}, el('summary', { text: `${s.tool.details.length} detail${s.tool.details.length === 1 ? '' : 's'}` }), el('ul', {}, s.tool.details.map(d => el('li', {}, linkify(String(d)))))) : null;
-  let t; const note = el('input', { type: 'text', value: s.note || '', placeholder: 'Add a note…', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
-  const fix = ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
+  let t; const note = SNAP ? (s.note ? el('p', { class: 'item-note' }, el('b', { text: 'Note: ' }), s.note) : null) : el('input', { type: 'text', value: s.note || '', placeholder: 'Add a note…', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
+  const fix = !SNAP && ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) }),
     // Confirm fix: the approved fix is done but the check can't verify it. Moves the item to Done until the finding changes.
     s.decision === 'approve' ? el('button', { type: 'button', 'data-d': 'confirm', 'aria-pressed': String(!!s.confirmed), text: s.confirmed ? 'Confirmed ✓' : 'Confirm fix',
-      title: s.confirmed ? 'Undo: move it back to Approved, not done.' : 'The fix is done, but the check can’t verify it. Moves this item to Done until a later run finds something different.',
+      title: s.confirmed ? 'Undo: move it back to Fix Failed.' : 'The fix is done, but the check can’t verify it. Moves this item to Fixed until a later run finds something different.',
       onclick: () => save({ confirm: !s.confirmed }) }) : null) : null;
-  return el('article', { class: 'item', 'data-status': status, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
+  // Flagged: it fails or needs a look and nobody has approved or declined the fix yet. The card stands out until decided.
+  const flagged = ['fail', 'warn'].includes(status) && !s.decision;
+  return el('article', { class: 'item' + (flagged ? ' is-flagged' : ''), 'data-id': it.id, 'data-status': status, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
+    kept.has(it.id) && !tileHas(it) ? el('div', { class: 'movedbar', role: 'note' }, el('b', { text: `Moved to ${movedTo(it)}` }), el('span', { text: 'Stays here until you pick another tile or tab.' })) : null,
+    flagged ? el('div', { class: 'flagbar', role: 'note' }, el('b', { text: SNAP ? '\u2691 Needs a decision' : '\u2691 Needs your decision' }), SNAP ? null : el('span', { text: 'Approve the fix or Decline it (bottom right).' })) : null,
     el('div', { class: 'item-main' },
       el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
       el('p', { class: 'item-desc', title: it.description, text: it.description }),
@@ -235,32 +293,51 @@ $('shotDialog').addEventListener('click', e => { if (e.target === $('shotDialog'
 $('shotDialog').addEventListener('keydown', e => { if (e.key === 'ArrowLeft') stepShot(-1); if (e.key === 'ArrowRight') stepShot(1); });
 $('shotDialog').addEventListener('close', () => { $('shotImg').removeAttribute('src'); });
 
+// The Flagged panel's heading: how many wait for a decision, and how many approved fixes haven't run yet.
+function flaggedHint(items, needs, failedFix, fixed) {
+  const undecided = items.filter(i => tileHas(i, 'decide') && !tabState(tab).items[i.id]?.decision).length;
+  const pending = needs - undecided;
+  const parts = [undecided ? `${undecided} waiting for Approve / Decline` : '', pending ? `${pending} approved, not fixed yet` : ''].filter(Boolean);
+  return parts.length ? parts.join(' · ') : failedFix ? `${failedFix} fix${failedFix === 1 ? '' : 'es'} failed` : fixed ? 'Nothing needs attention' : 'Nothing flagged';
+}
+
+// A labelled panel of count tiles.
+function countGroup(title, hint, tiles, cls = '') {
+  return el('section', { class: 'countgroup' + (cls ? ' ' + cls : ''), 'aria-label': title }, el('div', { class: 'countgroup-head' }, el('h3', { text: title }), hint ? el('small', { text: hint }) : null), el('div', { class: 'count-row' }, tiles));
+}
+
 // A count tile that filters the list. Empty tiles (0) can't be picked; a picked tile is outlined.
-function countTile(key, cls, n, label, title) {
-  return el('button', { type: 'button', class: `count ${cls}`, 'data-filter': key, 'aria-pressed': String(filter === key), disabled: n || key === 'all' ? null : true, title: title || `Show the ${label} items`, onclick: () => { filter = filter === key && key !== 'all' ? 'all' : key; applyFilter(); } }, el('b', { text: String(n) }), el('span', { text: label }));
+function countTile(key, cls, n, label, title, display) {
+  return el('button', { type: 'button', class: `count ${cls}`, 'data-filter': key, 'aria-pressed': String(filter === key), disabled: n || key === 'all' ? null : true, title: title || `Show the ${label.toLowerCase()} items`, onclick: () => { filter = filter === key && key !== 'all' ? 'all' : key; kept.clear(); render(); } }, el('b', { text: display ?? String(n) }), el('span', { text: label }));
 }
 
 function applyFilter() {
   document.querySelectorAll('#counts [data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
+  const byId = tab !== 'urls' && templates[tab] ? Object.fromEntries(templates[tab].sections.flatMap(s => s.items).map(i => [i.id, i])) : {};
   document.querySelectorAll('.item, .urow').forEach(r => {
-    const st = r.dataset.status; const bucket = r.dataset.bucket || '';
-    // Approved / Done / Declined items only show in their own view; All, Needs attention and Manual leave them out.
-    // URL rows: u:none / u:redirect / u:attention (scan status), u:approved, u:done. Checklist items: All = not decided;
-    // a status tile = not decided with that status; Manual = not decided and checked by hand; or a decided view.
+    const st = r.dataset.status;
+    // URL rows: u:none / u:redirect / u:attention (scan status), u:approved, u:done. Checklist items: tileHas() decides.
     const hide = r.classList.contains('urow')
       ? (filter === 'all' ? false : filter === 'u:approved' ? r.dataset.decision !== 'approve' : filter === 'u:done' ? r.dataset.done !== '1' : filter !== 'u:' + st)
-      : BUCKETS[filter] ? bucket !== filter : !!bucket || (filter === 'all' ? false : filter === 'manual' ? r.dataset.auto === '1' : st !== filter);
+      : !(byId[r.dataset.id] && (tileHas(byId[r.dataset.id]) || kept.has(r.dataset.id)));
     r.classList.toggle('hidden-by-filter', hide);
   });
-  // The Approved / Done / Declined views list every such item in the checklist, whatever section is picked.
-  $('secNav').hidden = tab === 'urls' || !!BUCKETS[filter];
-  const pickSec = tab !== 'urls' && !BUCKETS[filter] ? secSel[tab] || 'all' : 'all';
+  // Section pills follow the picked tile. A picked section with nothing for this tile falls back to All.
+  $('secNav').hidden = tab === 'urls';
+  const tpl = tab !== 'urls' && templates[tab] && document.querySelector('#sections .item') ? templates[tab] : null;
+  if (tpl) {
+    const sec = tpl.sections.find(x => x.title === secSel[tab]);
+    if (sec && !sec.items.some(itemShown)) secSel[tab] = 'all';
+    renderSecNav(tpl);
+  }
+  const pickSec = tab !== 'urls' ? secSel[tab] || 'all' : 'all';
   let shown = 0;
   document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || (!s.dataset.keep && !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)')); if (!s.hidden) shown++; });
   $('secEmpty').hidden = tab === 'urls' || shown > 0;
 }
 
-function setRunning(on) { $('runTool').disabled = on; $('applyFixes').disabled = on; $('askSend').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
+function setRunning(on) {
+  if (!on) $('genReport').textContent = 'Generate report'; $('runTool').disabled = on; $('applyFixes').disabled = on; $('askSend').disabled = on; $('genReport').disabled = on; $('runTool').textContent = on ? 'Running…' : 'Run Tool'; }
 
 function follow(runId) {
   if (stream) stream.close();
@@ -274,6 +351,18 @@ function follow(runId) {
   stream.addEventListener('failed', finish);
   stream.onerror = () => { if (stream) { stream.close(); stream = null; setRunning(false); } };
 }
+
+// Reports menu: open and close the list of published reports.
+const setReportList = open => { $('reportList').hidden = !open; $('reportsBtn').setAttribute('aria-expanded', String(open)); };
+$('reportsBtn').addEventListener('click', e => { e.stopPropagation(); setReportList($('reportList').hidden); });
+document.addEventListener('click', e => { if (!$('reportMenu').contains(e.target)) setReportList(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setReportList(false); });
+
+// Generate report: the read-only copy of this page, published through Claude Code to the site's one link.
+$('genReport').addEventListener('click', async () => {
+  try { setRunning(true); $('genReport').textContent = 'Generating…'; const r = await api(`/sites/${current.id}/report`, { method: 'POST' }); follow(r.runId); }
+  catch (e) { setRunning(false); alert(e.message); }
+});
 
 $('runTool').addEventListener('click', async () => {
   try { setRunning(true); const r = await api(`/sites/${current.id}/run/${tab}`, { method: 'POST' }); follow(r.runId); }
@@ -423,7 +512,7 @@ function renderUrls() {
   const approved = rows.filter(r => r.decision === 'approve').length;
   const shownU = { 'u:none': c.none, 'u:redirect': c.redirect, 'u:attention': c.attention, 'u:approved': approved, 'u:done': done };
   if (filter !== 'all' && !shownU[filter]) filter = 'all';
-  $('counts').replaceChildren(...(rows.length ? [countTile('all', 'c-all', rows.length, 'all', 'Every old page'), countTile('u:none', 'c-pass', c.none, 'same URL'), countTile('u:redirect', 'c-warn', c.redirect, 'URL changed'), countTile('u:attention', 'c-fail', c.attention, 'need attention'), countTile('u:approved', 'c-approved', approved, 'approved'), countTile('u:done', 'c-done', done, 'done')] : []));
+  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length, 'All', 'Every old page'), countTile('u:none', 'c-pass', c.none, 'Same URL'), countTile('u:redirect', 'c-warn', c.redirect, 'URL Changed'), countTile('u:attention', 'c-fail', c.attention, 'Need Attention'), countTile('u:approved', 'c-approved', approved, 'Approved'), countTile('u:done', 'c-done', done, 'Done')])] : []));
   if (!rows.length) {
     $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site. Then you can import the old site\'s redirects.')));
     return;

@@ -14,6 +14,7 @@ import { report, tabGreenlight } from '../lib/report.mjs';
 import { readGreenlight, greenlightLine, glSummary, FEATURES, RECOMMENDED, INFORMATIONAL, sortedAlerts, alertLine, GREENLIGHT_MIN_VERSION } from '../lib/greenlight.mjs';
 import { liveSite } from '../lib/live.mjs';
 import { claudeStatus, RULES } from '../lib/claude.mjs';
+import { buildSnapshot, saveReportLink } from '../lib/snapshot.mjs';
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
@@ -55,6 +56,9 @@ const HELP = `WPE QA Checklist ${VERSION} — command line
   greenlight <site>                      Greenlight's security status on staging and production: version, features,
                                          open alerts (read-only; needs Greenlight v${GREENLIGHT_MIN_VERSION}+)
   rules <site>                           The production rules for fixing this site by hand
+  snapshot <site> [--link URL]           Build the read-only report (views only) in data/reports/<site>/ for Claude to
+                                         publish as a new artifact. --link adds the published link to the site's list
+                                         of reports (the web app's Generate report does both).
   serve                                  Start the web app at http://localhost:4646
 
   <site> is the site id from \`sites\` or its URL.  Tabs: ${TABS.join(', ')}.  Add --json for machine-readable output.`;
@@ -97,18 +101,22 @@ function status(s, tab) {
 function bucketOf(i) {
   if (!i.decision) return null;
   const bad = ['fail', 'warn'].includes(i.status);
-  return i.decision === 'decline' ? (bad ? 'declined' : null) : bad ? (i.confirmed ? 'done' : 'approved') : i.status === 'pass' ? 'done' : null;
+  if (i.decision === 'decline') return bad ? 'declined' : null;
+  if (!bad) return i.status === 'pass' ? 'done' : null;
+  if (i.confirmed) return 'done';
+  return ['failed', 'applied', 'verified'].includes(i.fix?.state) ? 'approved' : null; // fix failed only once a fix ran
 }
 const printStatus = r => {
   console.log(`\n${r.title}: ${Object.entries(r.counts).map(([k, v]) => `${v} ${k}`).join(' · ')}${r.lastRun ? ` (last run ${new Date(r.lastRun).toLocaleString()})` : ' (not run yet)'}`);
   if (r.greenlight) console.log(`  ${greenlightLine(r.greenlight)}`);
+  if (r.attention.length) console.log(`  Needs attention (${r.attention.length}):`);
   for (const a of r.attention) {
     console.log(`  ${a.status === 'fail' ? 'FAIL' : 'LOOK'}  ${a.title}  [${a.id}]${a.decision ? `  fix ${a.decision}d` : ''}${a.fix ? `  (${a.fix})` : ''}`);
     if (a.summary) console.log(`        ${a.summary}`);
     for (const d of a.details) console.log(`          - ${d}`);
   }
-  if (r.approved.length) { console.log(`  Approved, fix in progress (${r.approved.length}):`); for (const a of r.approved) console.log(`    ${a.status === 'fail' ? 'FAIL' : 'LOOK'}  ${a.title}  [${a.id}]${a.fix ? `  (${a.fix})` : '  (not run yet)'}${a.summary ? `: ${a.summary}` : ''}`); }
-  if (r.done.length) console.log(`  Done (${r.done.length}): ${r.done.map(a => `${a.title} [${a.id}]${a.confirmed ? ' (confirmed by hand)' : ''}`).join(', ')}`);
+  if (r.approved.length) { console.log(`  Fix failed (${r.approved.length}):`); for (const a of r.approved) console.log(`    ${a.status === 'fail' ? 'FAIL' : 'LOOK'}  ${a.title}  [${a.id}]${a.fix ? `  (${a.fix})` : '  (not run yet)'}${a.summary ? `: ${a.summary}` : ''}`); }
+  if (r.done.length) console.log(`  Fixed (${r.done.length}): ${r.done.map(a => `${a.title} [${a.id}]${a.confirmed ? ' (confirmed by hand)' : ''}`).join(', ')}`);
   if (r.declined.length) console.log(`  Declined (${r.declined.length}): ${r.declined.map(a => `${a.title} [${a.id}]`).join(', ')}`);
 };
 
@@ -236,6 +244,17 @@ try {
         if (g.trustedEmbedDomains.length) console.log(`  Trusted embeds: ${g.trustedEmbedDomains.join(', ')}`);
         g.notes.forEach(n => console.log(`  note: ${n}`));
       }
+      break;
+    }
+    case 'snapshot': {
+      const s = site(rest[0]);
+      if (typeof flags.link === 'string') { const list = saveReportLink(s.id, flags.link); out(`Added the report to ${s.name}'s list (${list.length} report${list.length === 1 ? '' : 's'}): ${flags.link}`, { reports: list }); break; }
+      const r = buildSnapshot(s.id);
+      out(`Read-only report for ${s.name} built ${new Date(r.generatedAt).toLocaleString()}:
+  page:  ${path.relative(process.cwd(), r.page)}
+  files: ${r.files.length} (${(r.bytes / 1048576).toFixed(1)} MB with the page)${r.missingShots.length ? `\n  missing screenshots: ${r.missingShots.length}` : ''}
+  latest published report: ${r.link || 'none yet'}
+Publish the page with its files as a NEW artifact (no url), then add its link with: snapshot ${s.id} --link <url>`, { page: r.page, dir: r.dir, files: r.files, bytes: r.bytes, link: r.link, generatedAt: r.generatedAt });
       break;
     }
     case 'rules': { const s = site(rest[0]); if (!s.install) die('This site has no WP Engine install.'); console.log(RULES(s, { headless: false })); break; }

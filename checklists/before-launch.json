@@ -373,8 +373,8 @@
     {
      "id": "migration-checklist--add-google-tag-manager",
      "row": 49,
-     "title": "Add Google Tag Manager",
-     "description": "The Google Tag Manager container is added on staging for the AM to verify in the source.",
+     "title": "Google Tag Manager (GTM) container",
+     "description": "The GTM container (GTM-…) is added on staging for the AM to verify in the page source.",
      "owner": "Devs",
      "check": "html.gtmPresent"
     }
@@ -755,8 +755,8 @@
     {
      "id": "others--google-analytics-tags-present",
      "row": 97,
-     "title": "Google Analytics tags present",
-     "description": "Google Analytics tags are present on the site (escalate if missing).",
+     "title": "Google Analytics 4 (GA4) tag",
+     "description": "A GA4 measurement ID (G-…) is on the site, through Tag Manager or gtag.js (escalate if missing).",
      "owner": "Claude",
      "check": "html.analyticsTags"
     },

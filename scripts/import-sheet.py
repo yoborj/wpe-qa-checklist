@@ -184,6 +184,21 @@ EXTRA = {
 # Sections that only apply when the site uses that builder.
 APPLIES_IF = {'Elementor': 'elementor', 'YOOtheme': 'yootheme', 'Tailwind/Custom': 'tailwind'}
 
+# Clearer names for sheet rows whose wording is vague or overlaps another row. The item id still comes from the sheet's
+# task text, so saved decisions and notes carry over.
+RELABEL = {
+    'before-launch': {
+        'Add Google Tag Manager': {
+            'title': 'Google Tag Manager (GTM) container',
+            'description': 'The GTM container (GTM-…) is added on staging for the AM to verify in the page source.',
+        },
+        'Google Analytics tags present': {
+            'title': 'Google Analytics 4 (GA4) tag',
+            'description': 'A GA4 measurement ID (G-…) is on the site, through Tag Manager or gtag.js (escalate if missing).',
+        },
+    },
+}
+
 
 def load_agency():
     for f in ('agency.json', 'agency.example.json'):
@@ -234,11 +249,13 @@ def build(wb, key):
         if current is None:
             current = {'id': 'general', 'title': 'General', 'appliesIf': None, 'items': []}
             sections.append(current)
+        relabel = RELABEL.get(key, {}).get(task, {})
         current['items'].append({
             'id': f"{current['id']}--{slug(task)}",
             'row': i,
-            'title': task,
-            'description': generic_text(str(desc)),
+            'task': task,
+            'title': relabel.get('title', task),
+            'description': relabel.get('description', generic_text(str(desc))),
             'owner': generic_owner(who),
             'check': AUTO[key].get(task),
         })
@@ -247,7 +264,10 @@ def build(wb, key):
         if sec is None:
             sys.exit(f'{key}: EXTRA section {sec_id!r} not found in sheet')
         sec['items'].extend(extra)
-    unmapped = set(AUTO[key]) - {it['title'] for s in sections for it in s['items']}
+    unmapped = set(AUTO[key]) - {it.get('task', it['title']) for s in sections for it in s['items']}
+    for s in sections:
+        for it in s['items']:
+            it.pop('task', None)
     if unmapped:
         sys.exit(f'{key}: AUTO titles not found in sheet: {sorted(unmapped)}')
     return {'id': key, 'title': title, 'source': sheet, 'sections': sections}
