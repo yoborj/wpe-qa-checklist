@@ -71,3 +71,17 @@ test('the interactive rules (wpeqa rules) keep the wait and cache clearing', () 
   assert.match(r, /After changes, wait about 2 minutes/);
   assert.doesNotMatch(r, /headless/);
 });
+
+test('a headless run is told to work in few SSH calls and start from the site map', () => {
+  assert.match(RULES(site), /Every SSH call to WP Engine takes 10-30 seconds, so work in few calls/);
+  assert.doesNotMatch(RULES(site, { headless: false }), /work in few calls/);
+});
+
+test('the site map goes into the first prompt, before the items', async () => {
+  const { claudePrompt } = await import('../lib/claude.mjs');
+  const manual = [{ id: 'a', title: 'A', item: { description: 'd', finding: { summary: 's', details: [] } } }];
+  const p = claudePrompt(site, { title: 'QA' }, manual, null, 'WordPress 7.1 · theme demo\nTheme files:\n  ./functions.php');
+  assert.ok(p.indexOf('Site map, read just before this run') < p.indexOf('Approved items to fix:'));
+  assert.match(p, /\.\/functions\.php/);
+  assert.doesNotMatch(claudePrompt(site, { title: 'QA' }, manual, null), /Site map/);
+});

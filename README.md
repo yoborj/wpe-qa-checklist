@@ -40,7 +40,8 @@ Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
 **The count tiles are the filters**, in two panels:
 
-- **Checklist**, where the site stands: **All** (every item) · **Passed** (passes now, Fixed items included) ·
+- **Checklist**, where the site stands: **All** (every item) · **Passed** (passes now, plus Fixed and Declined items, which also show a green
+  Passed pill; hover it for what the check reported) ·
   **Manual To Do** (manual items, the ones no tool checks, still to mark) · **N/A** · **Automatic** (items Run Tool
   checks). The heading says how many applicable items pass.
 - **Flagged**, what needs a decision and how the fixes went: **Needs Attention** · **Fix Failed** (orange) · **Fixed** ·
@@ -252,7 +253,7 @@ against one of those files instead of SSH, start it with `WPEQA_GREENLIGHT_FIXTU
      approved, the plugin list and the WordPress version. If the backup fails, nothing is changed.
    - applies the **automatic fixes** over SSH/WP-CLI, logging each command's output;
    - clears caches (WordPress, WP Engine, WP Rocket if present);
-   - **re-runs the tab's checks**, so each fix is marked **Fixed · verified** or **Fix applied ·
+   - **re-checks the items it worked on** (not the whole tab, so it takes about a minute), so each fix is marked **Fixed · verified** or **Fix applied ·
      still flagged** (or **Fix failed**);
    - writes a **fix request** for approved items the app can't fix safely (theme code, content,
      judgment calls). Copy it from **Fix history and backups** and hand it to Claude or a developer.
@@ -270,6 +271,14 @@ update WordPress core · set the admin email · replace the staging domain in th
 (`wp search-replace`, dry run first, GUIDs untouched) · turn on Greenlight's recommended security features. They live in `lib/fixers.mjs`.
 
 Plain **Run Tool** runs never change the site, so they don't take a backup.
+
+### Why fix runs are faster now
+
+A fix run used to spend most of its time in two places: re-running every check in the tab to verify (4-9 minutes) and
+the background Claude rediscovering the site one SSH call at a time (8-15 minutes). Now the app re-checks only the items
+the run worked on (two items: under a minute), gives Claude a site map read in one SSH call (theme files, plugins, post
+types, ACF field groups, pages) and tells it to batch its commands, and waits the 2 minutes for new PHP only when a PHP
+file or `.htaccess` actually changed.
 
 ## Read-only report
 

@@ -3,6 +3,19 @@
 All notable changes to WPE QA Checklist. Versions follow [semantic versioning](https://semver.org/); each one is
 tagged `vX.Y.Z` with a GitHub release.
 
+## Unreleased
+
+### Changed
+- **Faster fix runs.** The verify step re-checks only the items the run worked on instead of the whole tab (two
+  items: about 40 seconds instead of 7-9 minutes; a homepage-only check no longer crawls every page). Background Claude
+  gets a site map read in one SSH call (theme files, plugins, post types, ACF field groups, pages) and is told to batch
+  its SSH work. The 2-minute wait for new PHP happens only when a PHP file or `.htaccess` changed during the run.
+- **Declined and confirmed items count as Passed** and show a green Passed pill (hover: what the check reported), so
+  Passed + Manual To Do + N/A + Needs Attention add up to All.
+
+### Fixed
+- Screenshots taken while verifying a fix run linked to the wrong folder.
+
 ## 0.3.0 — 2026-11-12
 
 Still requires **Greenlight v0.2.0 or newer** for the Greenlight security items.

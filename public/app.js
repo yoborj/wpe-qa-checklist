@@ -152,7 +152,7 @@ function render() {
   if (tab === 'urls') return renderUrls();
   if (tab === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return renderLiveGate();
   const tpl = templates[tab]; const ts = tabState(tab);
-  const last = ts.runs?.[0];
+  const last = ts.runs?.find(r => !r.partial) || ts.runs?.[0]; // a fix run's re-check of a few items isn't a full run
   $('lastRun').textContent = last ? `Ran ${ago(last.finishedAt)} · ${Math.round(last.durationMs / 1000)} s` : 'Not run yet';
   $('reportLink').href = `/api/sites/${current.id}/report/${tab}`;
   $('runTool').textContent = `Run Tool`;
@@ -203,7 +203,7 @@ function tileHas(it, key = filter) {
   if (BUCKETS[key]) return b === key;
   switch (key) {
     case 'all': return true;
-    case 'pass': return st === 'pass' || b === 'done';
+    case 'pass': return st === 'pass' || b === 'done' || b === 'declined'; // passes, Fixed (incl. confirmed) or Declined
     case 'decide': return !b && ['fail', 'warn'].includes(st);
     case 'manualtodo': return !it.check && st === 'todo';
     case 'auto': return !!it.check;
@@ -241,8 +241,11 @@ function itemRow(it) {
   const save = patch => { const wasShown = tileHas(it); return api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: patch }).then(v => { (data.state.tabs[tab] ||= { items: {}, runs: [] }).items[it.id] = v; if (wasShown) kept.add(it.id); render(); }).catch(e => alert(e.message)); };
   // Automatic items: the scan decides the status (read-only). Manual items: a person marks them.
   const auto = !!(it.check || s.tool);
-  const seg = auto || SNAP
-    ? el('span', { class: `spill sp-${status}`, title: auto ? 'Set by Run Tool' : 'Marked by hand', text: auto && !s.tool ? 'Not run yet' : LABEL[status] })
+  // Confirmed fixes and declined items show as Passed (they count under Passed); hover shows what the check reported.
+  const settled = ['fail', 'warn'].includes(status) && (s.decision === 'decline' || (s.decision === 'approve' && s.confirmed));
+  const shown = settled ? 'pass' : status;
+  const seg = auto || SNAP || settled
+    ? el('span', { class: `spill sp-${shown}`, title: settled ? `${s.decision === 'decline' ? 'Declined' : 'Fix confirmed by you'}: counted as passed. The check reported: ${LABEL[status]}.` : auto ? 'Set by Run Tool' : 'Marked by hand', text: auto && !s.tool && !settled ? 'Not run yet' : LABEL[shown] })
     : el('div', { class: 'seg', role: 'group', 'aria-label': `Status of ${it.title}` }, STATUS.map(([k, label]) => el('button', { type: 'button', 'data-s': k, 'aria-pressed': String(status === k), title: LABEL[k], text: label, onclick: () => save({ status: k }) })));
   const src = auto
     ? el('span', { class: 'src', text: s.tool ? `automatic · ${ago(s.tool.at)}` : 'automatic' })
@@ -258,7 +261,7 @@ function itemRow(it) {
       onclick: () => save({ confirm: !s.confirmed }) }) : null) : null;
   // Flagged: it fails or needs a look and nobody has approved or declined the fix yet. The card stands out until decided.
   const flagged = ['fail', 'warn'].includes(status) && !s.decision;
-  return el('article', { class: 'item' + (flagged ? ' is-flagged' : ''), 'data-id': it.id, 'data-status': status, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
+  return el('article', { class: 'item' + (flagged ? ' is-flagged' : ''), 'data-id': it.id, 'data-status': shown, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
     kept.has(it.id) && !tileHas(it) ? el('div', { class: 'movedbar', role: 'note' }, el('b', { text: `Moved to ${movedTo(it)}` }), el('span', { text: 'Stays here until you pick another tile or tab.' })) : null,
     flagged ? el('div', { class: 'flagbar', role: 'note' }, el('b', { text: SNAP ? '\u2691 Needs a decision' : '\u2691 Needs your decision' }), SNAP ? null : el('span', { text: 'Approve the fix or Decline it (bottom right).' })) : null,
     el('div', { class: 'item-main' },
