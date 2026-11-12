@@ -3,7 +3,9 @@
 All notable changes to WPE QA Checklist. Versions follow [semantic versioning](https://semver.org/); each one is
 tagged `vX.Y.Z` with a GitHub release.
 
-## Unreleased
+## 0.3.0 — 2026-11-12
+
+Still requires **Greenlight v0.2.0 or newer** for the Greenlight security items.
 
 ### Added
 - **Generate report.** A toolbar button that publishes an exact, view-only copy of the site's page (same tabs, tiles,
