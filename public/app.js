@@ -251,8 +251,12 @@ $('deleteSite').addEventListener('click', async () => {
 // Claude Code conversation (the app backs up again first), so the person never leaves the app.
 let askRun = null;
 function renderAsk() {
-  const runs = tabState(tab).fixRuns || [];
-  const r = runs.find(x => x.questions?.length && !x.answeredBy);
+  // Only questions still open: the item is still waiting on this run's question for the same finding (a re-check,
+  // a newer fix run or a change of decision makes the question out of date).
+  const ts = tabState(tab);
+  const open = run => (run.questions || []).filter(q => { const s = ts.items[q.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && s.fix?.state === 'question' && s.fix.runId === run.id && s.fix.toolAt === s.tool?.at; });
+  const r0 = (ts.fixRuns || []).find(x => !x.answeredBy && open(x).length);
+  const r = r0 && { ...r0, questions: open(r0) };
   const fresh = r && r.id !== askRun?.id;
   askRun = r || null;
   $('askPanel').hidden = !r;
