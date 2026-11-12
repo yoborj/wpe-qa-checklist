@@ -92,7 +92,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
 .toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 26px 0 20px; }
 .spacer { flex: 1; }
 .lastrun { color: var(--faint); font-size: 15px; }
-.filters { display: inline-flex; padding: 4px; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.filters { display: inline-flex; flex-wrap: wrap; padding: 4px; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .filters button { border: 0; background: none; color: var(--faint); padding: 7px 15px; border-radius: 9px; cursor: pointer; font-weight: 700; font-size: 15px; transition: background-color .15s, color .15s; }
 .filters button:hover { color: var(--ink); }
 .filters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
@@ -123,6 +123,12 @@ main { max-width: 1240px; margin: 0 auto; padding: 36px 28px 90px; }
 .count span { font-size: 14px; font-weight: 600; opacity: .85; }
 .c-pass { background: var(--pass-soft); color: var(--pass); } .c-fail { background: var(--fail-soft); color: var(--fail); } .c-warn { background: var(--warn-soft); color: var(--warn); }
 .c-na { background: var(--na-soft); color: var(--na); } .c-todo { background: var(--na-soft); color: var(--todo); }
+/* Decided items: approved (in progress), done (fixed), declined. Click to open their view. */
+button.count { font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+button.count:hover { border-color: currentColor; }
+.c-approved { background: var(--accent-soft); color: var(--accent); }
+.c-done { background: var(--pass-soft); color: var(--pass); }
+.c-declined { background: var(--surface); border-color: var(--line-2); color: var(--faint); }
 .c-auto { background: var(--surface); border-color: var(--line); color: var(--accent); }
 
 /* Sections and item cards */

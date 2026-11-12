@@ -84,7 +84,17 @@ function status(s, tab) {
   const st = getState(s.id).tabs[tab] || { items: {}, runs: [] };
   const list = items(tab).map(i => ({ id: i.id, title: i.title, section: i.section, auto: !!i.check, ...(st.items[i.id] || {}), status: st.items[i.id]?.status || 'todo' }));
   const counts = list.reduce((c, i) => (c[i.status] = (c[i.status] || 0) + 1, c), {});
-  return { tab, title: templates()[tab].title, lastRun: st.runs?.[0]?.finishedAt || null, counts, greenlight: tabGreenlight(templates()[tab], st), attention: list.filter(i => ['fail', 'warn'].includes(i.status)).map(i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, note: i.note || '' })) };
+  const row = i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, note: i.note || '' });
+  // As in the web app: attention = failing or flagged items still waiting for a decision; decided items are listed
+  // apart (approved = fix in progress, done = approved and passing now, declined = still failing, not to be fixed).
+  const by = b => list.filter(i => bucketOf(i) === b).map(row);
+  return { tab, title: templates()[tab].title, lastRun: st.runs?.[0]?.finishedAt || null, counts, greenlight: tabGreenlight(templates()[tab], st),
+    attention: list.filter(i => ['fail', 'warn'].includes(i.status) && !bucketOf(i)).map(row), approved: by('approved'), done: by('done'), declined: by('declined') };
+}
+function bucketOf(i) {
+  if (!i.decision) return null;
+  const bad = ['fail', 'warn'].includes(i.status);
+  return i.decision === 'decline' ? (bad ? 'declined' : null) : bad ? 'approved' : i.status === 'pass' ? 'done' : null;
 }
 const printStatus = r => {
   console.log(`\n${r.title}: ${Object.entries(r.counts).map(([k, v]) => `${v} ${k}`).join(' · ')}${r.lastRun ? ` (last run ${new Date(r.lastRun).toLocaleString()})` : ' (not run yet)'}`);
@@ -94,6 +104,9 @@ const printStatus = r => {
     if (a.summary) console.log(`        ${a.summary}`);
     for (const d of a.details) console.log(`          - ${d}`);
   }
+  if (r.approved.length) { console.log(`  Approved, fix in progress (${r.approved.length}):`); for (const a of r.approved) console.log(`    ${a.status === 'fail' ? 'FAIL' : 'LOOK'}  ${a.title}  [${a.id}]${a.fix ? `  (${a.fix})` : '  (not run yet)'}${a.summary ? `: ${a.summary}` : ''}`); }
+  if (r.done.length) console.log(`  Done (${r.done.length}): ${r.done.map(a => `${a.title} [${a.id}]`).join(', ')}`);
+  if (r.declined.length) console.log(`  Declined (${r.declined.length}): ${r.declined.map(a => `${a.title} [${a.id}]`).join(', ')}`);
 };
 
 const [cmd, ...rest] = pos;

@@ -38,6 +38,20 @@ get **Fix: Approve / Decline**, and **Apply approved fixes** carries out the app
 first (see below). **Report** opens a
 Markdown summary of the tab for pasting into the sheet, a ticket or a message.
 
+Once you decide on an item it leaves the main list, so **All** and **Needs attention** only show what still needs a
+decision (and the tab's red badge counts only those). Decided items have their own views, next to the filters and as
+count tiles you can click:
+
+| View | Items |
+|---|---|
+| **Approved (N)** | Fix approved, still failing or flagged: waiting for **Apply fixes**, in a fix request, or waiting for your answer to Claude |
+| **Done (N)** | Fix approved and the check passes now |
+| **Declined (N)** | Fix declined and still failing or flagged (a wrong finding, or not worth fixing) |
+
+Undo a decision from its view (press Approve or Decline again) and the item is back in the main list. A declined item
+that passes later goes back to normal; a done item that fails again moves to Approved. `status` on the command line
+groups items the same way.
+
 Elementor, YOOtheme and Tailwind sections are kept but marked N/A automatically unless the site uses them.
 
 **Staging and production.** Each site has a **Staging site to audit** (QA Swarm, WP Site Audit, Before Launch

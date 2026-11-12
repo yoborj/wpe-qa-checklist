@@ -6,6 +6,11 @@ tagged `vX.Y.Z` with a GitHub release.
 ## Unreleased
 
 ### Added
+- **Approved / Done / Declined views.** Decided items leave the main list, the count tiles and the tab's red badge, so
+  **All** and **Needs attention** show only what still needs a decision. Each checklist gets **Approved (N)** (fix in
+  progress), **Done (N)** (approved and passing now) and **Declined (N)**, as filter buttons and clickable count tiles.
+  `status` groups items the same way, and `approve --all-failing` only approves items not decided yet (it no longer
+  overrides a decline).
 - **Answer Claude in the app.** When a "Have Claude fix these" run needs your decision, the tab shows a
   **Claude needs your answer** box with each question. **Send answer and continue** backs up again, continues the
   same Claude Code conversation with your answer, and re-checks the tab. Items waiting for you show

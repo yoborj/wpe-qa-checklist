@@ -68,6 +68,17 @@ async function openSite(id) {
 
 function tabState(t) { return data.state.tabs?.[t] || { items: {}, runs: [] }; }
 function statusOf(t, it) { return tabState(t).items[it.id]?.status || 'todo'; }
+// Decided items leave the normal lists, counts and badges and show in their own view instead:
+//   approved: fix approved, still failing or flagged (in progress) · done: fix approved and the check passes now ·
+//   declined: fix declined, still failing or flagged. A declined item that passes later is back to normal; a done
+//   item that fails again is approved (in progress) again.
+const BUCKETS = { approved: 'Approved', done: 'Done', declined: 'Declined' };
+function bucketOf(t, it) {
+  const s = tabState(t).items[it.id]; if (!s?.decision) return null;
+  const bad = ['fail', 'warn'].includes(s.status);
+  return s.decision === 'decline' ? (bad ? 'declined' : null) : bad ? 'approved' : s.status === 'pass' ? 'done' : null;
+}
+const isBad = (t, it) => ['fail', 'warn'].includes(statusOf(t, it)) && !bucketOf(t, it);
 
 function render() {
   // Tabs with a badge for items that need attention.
@@ -79,7 +90,7 @@ function render() {
     }
     if (t === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return el('button', { role: 'tab', 'aria-selected': String(t === tab), title: 'Unlocks once the production site is confirmed live', onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, templates[t].title, el('span', { class: 'badge lock', text: '🔒' }));
     const tpl = templates[t]; const items = tpl.sections.flatMap(s => s.items);
-    const bad = items.filter(i => ['fail', 'warn'].includes(statusOf(t, i))).length;
+    const bad = items.filter(i => isBad(t, i)).length;
     const ran = tabState(t).runs?.length;
     return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
   }));
@@ -87,6 +98,8 @@ function render() {
   document.querySelector('.filters [data-filter="attention"]').textContent = tab === 'urls' ? 'Changed' : 'Needs attention';
   document.querySelector('.filters [data-filter="manual"]').textContent = tab === 'urls' ? 'Same URL' : 'Manual';
   $('secNav').hidden = tab === 'urls'; $('askPanel').hidden = true; fixRetry = false;
+  for (const b of Object.keys(BUCKETS)) document.querySelector(`.filters [data-filter="${b}"]`).hidden = true;
+  if (tab === 'urls' && BUCKETS[filter]) filter = 'all';
   if (tab === 'urls') return renderUrls();
   if (tab === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return renderLiveGate();
   const tpl = templates[tab]; const ts = tabState(tab);
@@ -104,8 +117,13 @@ function render() {
   $('runTool').title = `Run the automatic ${tpl.title} checks on ${current.name}`;
 
   const items = tpl.sections.flatMap(s => s.items);
-  const counts = Object.fromEntries(Object.keys(LABEL).map(k => [k, items.filter(i => statusOf(tab, i) === k).length]));
-  $('counts').replaceChildren(...Object.keys(TILE).map(k => el('div', { class: `count c-${k}` }, el('b', { text: String(counts[k]) }), el('span', { text: TILE[k] }))), el('div', { class: 'count c-auto' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
+  const inBucket = Object.fromEntries(Object.keys(BUCKETS).map(b => [b, items.filter(i => bucketOf(tab, i) === b).length]));
+  const counts = Object.fromEntries(Object.keys(LABEL).map(k => [k, items.filter(i => statusOf(tab, i) === k && !bucketOf(tab, i)).length]));
+  $('counts').replaceChildren(...Object.keys(TILE).map(k => el('div', { class: `count c-${k}` }, el('b', { text: String(counts[k]) }), el('span', { text: TILE[k] }))),
+    ...Object.keys(BUCKETS).filter(b => inBucket[b]).map(b => el('button', { type: 'button', class: `count c-${b}`, title: `Show the ${BUCKETS[b].toLowerCase()} items`, onclick: () => { filter = b; applyFilter(); } }, el('b', { text: String(inBucket[b]) }), el('span', { text: BUCKETS[b].toLowerCase() }))),
+    el('div', { class: 'count c-auto' }, el('b', { text: `${items.filter(i => i.check).length}/${items.length}` }), el('span', { text: 'automatic' })));
+  for (const b of Object.keys(BUCKETS)) { const btn = document.querySelector(`.filters [data-filter="${b}"]`); btn.hidden = !inBucket[b]; btn.textContent = `${BUCKETS[b]} (${inBucket[b]})`; }
+  if (BUCKETS[filter] && !inBucket[filter]) filter = 'all';
 
   renderSecNav(tpl);
   $('sections').replaceChildren(...tpl.sections.map(sec => {
@@ -123,7 +141,7 @@ function renderSecNav(tpl) {
   const pick = t => { secSel[tab] = t; store.set('wpeqa.sec', JSON.stringify(secSel)); renderSecNav(tpl); applyFilter(); window.scrollTo({ top: $('secNav').offsetTop - 90, behavior: 'smooth' }); };
   const badge = items => {
     const st = items.map(i => statusOf(tab, i));
-    const bad = st.filter(x => x === 'fail' || x === 'warn').length;
+    const bad = items.filter(i => isBad(tab, i)).length;
     if (bad) return el('span', { class: 'sbadge bad', text: String(bad) });
     if (st.every(x => x === 'na')) return el('span', { class: 'sbadge na', text: 'n/a' });
     if (st.some(x => x === 'pass') && st.every(x => ['pass', 'na'].includes(x))) return el('span', { class: 'sbadge ok', text: '✓' });
@@ -151,7 +169,7 @@ function itemRow(it) {
   const fix = ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) })) : null;
-  return el('article', { class: 'item', 'data-status': status, 'data-auto': it.check ? '1' : '0' },
+  return el('article', { class: 'item', 'data-status': status, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
     el('div', { class: 'item-main' },
       el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
       el('p', { class: 'item-desc', title: it.description, text: it.description }),
@@ -187,10 +205,15 @@ $('shotDialog').addEventListener('close', () => { $('shotImg').removeAttribute('
 function applyFilter() {
   document.querySelectorAll('.filters button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
   document.querySelectorAll('.item, .urow').forEach(r => {
-    const st = r.dataset.status; const hide = r.classList.contains('urow') ? (filter === 'attention' ? st === 'none' : filter === 'manual' ? st !== 'none' : false) : filter === 'attention' ? !['fail', 'warn'].includes(st) : filter === 'manual' ? r.dataset.auto === '1' : false;
+    const st = r.dataset.status; const bucket = r.dataset.bucket || '';
+    // Approved / Done / Declined items only show in their own view; All, Needs attention and Manual leave them out.
+    const hide = r.classList.contains('urow') ? (filter === 'attention' ? st === 'none' : filter === 'manual' ? st !== 'none' : false)
+      : BUCKETS[filter] ? bucket !== filter : !!bucket || (filter === 'attention' ? !['fail', 'warn'].includes(st) : filter === 'manual' ? r.dataset.auto === '1' : false);
     r.classList.toggle('hidden-by-filter', hide);
   });
-  const pickSec = tab !== 'urls' ? secSel[tab] || 'all' : 'all';
+  // The Approved / Done / Declined views list every such item in the checklist, whatever section is picked.
+  $('secNav').hidden = tab === 'urls' || !!BUCKETS[filter];
+  const pickSec = tab !== 'urls' && !BUCKETS[filter] ? secSel[tab] || 'all' : 'all';
   let shown = 0;
   document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || (!s.dataset.keep && !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)')); if (!s.hidden) shown++; });
   $('secEmpty').hidden = tab === 'urls' || shown > 0;
