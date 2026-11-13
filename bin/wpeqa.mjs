@@ -3,14 +3,15 @@
 // Run `node bin/wpeqa.mjs help` for usage.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem } from '../lib/store.mjs';
+import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem, runDir } from '../lib/store.mjs';
 import { URLS_TAB, URL_STATUSES, CHOICES, effective, keepInfo, setUrlRow, recheckKeep, planRedirects, relayoutUrls } from '../lib/redirects.mjs';
 import { LIVE_TAB, liveChecks, confirmLive, liveConfirmed } from '../lib/live.mjs';
-import { checkJob, fixJob, legacyJob } from '../lib/jobs.mjs';
+import { checkJob, fixJob, legacyJob, revertJob } from '../lib/jobs.mjs';
 import { LEGACY_STATUSES, legacyEffective, legacyRows, setLegacyRow } from '../lib/legacy.mjs';
 import fs from 'node:fs';
 import { planFixes } from '../lib/fixers.mjs';
 import { withChildren, isContainer } from '../lib/children.mjs';
+import { planRevert } from '../lib/revert.mjs';
 import { report, tabGreenlight } from '../lib/report.mjs';
 import { readGreenlight, greenlightLine, glSummary, FEATURES, RECOMMENDED, INFORMATIONAL, sortedAlerts, alertLine, GREENLIGHT_MIN_VERSION } from '../lib/greenlight.mjs';
 import { liveSite } from '../lib/live.mjs';
@@ -31,6 +32,8 @@ const HELP = `WPE QA Checklist ${VERSION} — command line
   approve <site> <tab> <item-id…|--all-failing> [--note TEXT]
   decline <site> <tab> <item-id…>        Record fix decisions, as the Approve/Decline buttons do
   note <site> <tab> <item-id> <text>     Save a note on an item (e.g. the login slug for Hide the login URL)
+  revert <site> <tab> <item-id> [--yes]   Undo on the site what that item's earlier fix changed (Claude, from the backup
+                                         taken before it; fresh backup first). Without --yes: show what would happen
   confirm-fix <site> <tab> <item-id…> [--undo]
                                          Mark approved fixes as done when the check can't verify them (moves them to
                                          Done until a later run finds something different). Only with the person's OK.
@@ -166,6 +169,14 @@ try {
       for (const id of ids) { if (!known.has(id)) die(`Unknown item id: ${id}`); setItem(s.id, tab, id, { decision: cmd === 'approve' ? 'approve' : 'decline', ...(typeof flags.note === 'string' ? { note: flags.note } : {}) }); }
       out(`${cmd === 'approve' ? 'Approved' : 'Declined'} ${ids.length} item${ids.length === 1 ? '' : 's'}.`, { ids });
       break;
+    }
+    case 'revert': {
+      const s = site(rest[0]); const [tab] = tabArg(rest[1]); const itemId = rest[2];
+      if (!itemId) die('Usage: revert <site> <tab> <item-id> [--yes]');
+      const p = planRevert({ site: s, template: templates()[tab], tabState: getState(s.id).tabs[tab] || { items: {} }, itemId, runDirOf: rid => runDir(s.id, rid) });
+      if (flags.yes !== true) { out(`Revert the fix on “${p.item.title}” on ${s.url}:\n  1. Fresh backup (database + theme).\n  2. Claude undoes only what fix run ${p.fixRunId} (${p.fixWhen}) changed${p.did ? `: ${p.did}` : ''}, from its backup ${p.fixRun.backup.path}.\n  3. Wait for new PHP, clear caches, re-check the item. Its approval is cleared.\nThis changes the site: get the site owner's OK, then add --yes.`, { item: itemId, fixRun: p.fixRunId, backup: p.fixRun.backup.path }); break; }
+      const r = await revertJob({ site: s, tab, itemId });
+      out(`\n${r.outcome.state === 'reverted' ? 'Reverted' : 'Not reverted'}: ${r.outcome.action || r.outcome.reason}\nBackup taken first: ${r.meta.backup.path}`, r); break;
     }
     case 'confirm-fix': {
       const s = site(rest[0]); const [tab] = tabArg(rest[1]); const ids = rest.slice(2);

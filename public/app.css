@@ -195,6 +195,8 @@ button.count.c-decide.is-flagged[aria-pressed="true"] { box-shadow: 0 0 0 3px va
 .item.is-child .flagbar, .item.is-child .movedbar { margin: -4px -8px 2px -12px; font-size: 13.5px; }
 .item.is-child .item-extra input { background: var(--surface); }
 .item.is-container > .item-extra:empty { display: none; }
+.item-extra .revert { margin-left: auto; }
+.fixstate.fs-reverted { background: var(--surface-2); color: var(--faint); }
 .chip.kid { background: var(--surface); color: var(--faint); border: 1px solid var(--line); }
 
 /* Status switch */

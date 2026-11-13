@@ -5,8 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { ROOT, DATA, TABS, templates, listSites, getSite, saveSite, deleteSite, getState, setItem, runDir } from './lib/store.mjs';
-import { checkJob, fixJob, legacyJob, openQuestions, newRunId, runLogger } from './lib/jobs.mjs';
+import { checkJob, fixJob, legacyJob, openQuestions, newRunId, runLogger, revertJob } from './lib/jobs.mjs';
 import { setLegacyRow } from './lib/legacy.mjs';
+import { revertBlocker } from './lib/revert.mjs';
 import { claudeStatus } from './lib/claude.mjs';
 import { agency } from './lib/config.mjs';
 import { planFixes, retryIds } from './lib/fixers.mjs';
@@ -47,7 +48,7 @@ function startJob(site, tab, kind, opts = {}) {
   runs.set(id, run);
   const log = runLogger(runDir(site.id, id), l => { run.log.push(l); emit(run, 'log', l); });
   const progress = p => { run.progress = Math.max(run.progress, Math.min(1, p)); emit(run, 'progress', run.progress); };
-  const job = kind === 'report' ? publishReport(site.id, log).then(r => { progress(1); return r; }) : kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude, reply: opts.reply || null, retry: !!opts.retry }).then(r => r.meta) : kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress, fresh: !!opts.fresh });
+  const job = kind === 'report' ? publishReport(site.id, log).then(r => { progress(1); return r; }) : kind === 'fix' ? fixJob({ site, tab, id, log, progress, claude: !!opts.claude, reply: opts.reply || null, retry: !!opts.retry }).then(r => r.meta) : kind === 'revert' ? revertJob({ site, tab, itemId: opts.item, id, log, progress }).then(r => r.meta): kind === 'import' ? legacyJob({ site, id, log, file: opts.file, remove: opts.remove }) : checkJob({ site, tab, id, log, progress, fresh: !!opts.fresh });
   job.then(meta => { run.result = meta; emit(run, 'done', meta); })
     .catch(e => { log(`Stopped: ${e.message}`); run.error = e.message; emit(run, 'failed', { error: e.message }); })
     .finally(() => { run.done = true; for (const l of run.listeners) l.end(); run.listeners.clear(); setTimeout(() => runs.delete(id), 30 * 60 * 1000); });
@@ -108,6 +109,8 @@ const server = http.createServer(async (req, res) => {
       const r = startJob(site, p[4], 'fix', { reply: { to: String(b.runId), answer } });
       return send(res, 200, { runId: r.id });
     }
+    // Revert fix: undo on the site what one item's earlier fix changed (confirmed in the app).
+    if (req.method === 'POST' && p[3] === 'revert' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the revert first.' }); const why = revertBlocker(getState(site.id).tabs[p[4]], String(b.item || '')); if (why) return send(res, 400, { error: why }); const st = claudeStatus(); if (!st.ok) return send(res, 400, { error: st.reason }); const r = startJob(site, p[4], 'revert', { item: String(b.item) }); return send(res, 200, { runId: r.id }); }
     if (req.method === 'POST' && p[3] === 'fix' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the fix run first.' }); const r = startJob(site, p[4], 'fix', { claude: b.claude === true, retry: b.retry === true }); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'fix-request' && p[4]) { const f = path.join(runDir(site.id, p[4]), 'fix-request.md'); return fs.existsSync(f) ? send(res, 200, fs.readFileSync(f, 'utf8'), TYPES['.md']) : send(res, 404, { error: 'No fix request for that run.' }); }
     if (req.method === 'GET' && p[3] === 'report' && TABS.includes(p[4])) return send(res, 200, report(site, p[4], templates()[p[4]], getState(site.id)), TYPES['.md']);

@@ -6,6 +6,11 @@ tagged `vX.Y.Z` with a GitHub release.
 ## Unreleased
 
 ### Added
+- **Revert fix.** Fixed cards whose fix a fix run made (by the app or Claude) get a Revert fix button (`revert <site>
+  <tab> <item> --yes` on the command line). After you confirm, it takes a fresh backup, has Claude undo only what that
+  fix changed, from the backup taken just before it (single files and values, never the whole database or theme, never
+  the other items from that run, nothing edited since), waits for new PHP, clears caches and re-checks the item. A
+  reverted item shows "Fix reverted" and asks for a decision again, so the next Apply fixes doesn't redo it.
 - **Why it's still failing.** Every Fix Failed card shows what the fix did (Claude's own summary, or the app's command
   output), what the re-check still finds, and what to do next (Confirm fix if what's left is on purpose, else retry).
 - **Child findings.** A check can report separate problems as child cards under one item, each with its own status,

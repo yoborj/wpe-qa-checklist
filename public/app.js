@@ -42,7 +42,7 @@ function snapApi(path, opts) {
 const api = async (path, opts = {}) => { if (SNAP) return snapApi(path, opts); const r = await fetch('/api' + path, { headers: { 'content-type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
 const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString(); };
 const linkify = text => { const frag = document.createDocumentFragment(); let last = 0; for (const m of text.matchAll(/(https?:\/\/\S+|\/runs\/\S+)/g)) { frag.append(text.slice(last, m.index)); frag.append(el('a', { href: m[0], target: '_blank', rel: 'noopener', text: m[0].length > 70 ? m[0].slice(0, 67) + '…' : m[0] })); last = m.index + m[0].length; } frag.append(text.slice(last)); return frag; };
-const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request', question: 'Claude asked you' };
+const FIXSTATE = { verified: 'Fixed · verified', applied: 'Fix applied · still flagged', failed: 'Fix failed', manual: 'In fix request', question: 'Claude asked you', reverted: 'Fix reverted', 'not-reverted': 'Revert not done' };
 const fixLabel = f => f.by === 'claude' ? ({ verified: 'Fixed by Claude · verified', applied: 'Fixed by Claude · check it', manual: 'Claude skipped · in fix request', question: 'Claude has a question · answer above' }[f.state] || FIXSTATE[f.state]) : FIXSTATE[f.state] || f.state;
 // The pill says where an item stands, in plain words. Fix Failed: what's happening with the fix. Fixed: how it
 // got there. Declined: won't fix. The current check result wins over the last fix run (fix.toolAt is the finding that
@@ -297,6 +297,10 @@ function itemRow(it) {
   // A container: its check reported separate findings, shown as child cards; each child gets the decision, not this card.
   const kids = kidsOf(tab, it), box = kids.length > 0;
   const kidsWaiting = kids.filter(k => { const ks = tabState(tab).items[k.id] || {}; return ['fail', 'warn'].includes(ks.status) && !ks.decision; }).length;
+  // Revert fix (Fixed cards whose fix a fix run made, so there's a backup from just before it): undoes it on the site.
+  const fixRun = s.fix?.runId && (tabState(tab).fixRuns || []).find(r => r.id === s.fix.runId);
+  const revert = !SNAP && !box && bucketOf(tab, it) === 'done' && ['verified', 'applied'].includes(s.fix?.state) && fixRun?.backup
+    ? el('button', { type: 'button', class: 'btn ghost revert', text: 'Revert fix', title: `Undo on the site what the fix of ${new Date(fixRun.finishedAt).toLocaleString()} changed`, onclick: () => revertFix(it, s, fixRun) }) : null;
   const fix = !SNAP && !box && ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) }),
@@ -321,8 +325,18 @@ function itemRow(it) {
         el('span', { text: `${sh.page} · ${sh.label}${sh.found ? '' : ' (not pinpointed; page view)'}` })))) : null,
       s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'How to fix' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
     el('div', { class: 'item-side' }, seg, src, box ? null : (p => p ? el('span', { class: `fixstate fs-${p.cls}`, title: p.title, text: p.text }) : null)(fixPill(s))),
-    el('div', { class: 'item-extra' }, note, fix),
+    el('div', { class: 'item-extra' }, note, fix, revert),
     box ? el('div', { class: 'kids', role: 'group', 'aria-label': `Findings for ${it.title}` }, kids.map(k => itemRow(k))) : null);
+}
+
+// Revert fix: confirm what will happen on the site, then run it (backup, Claude undoes that one fix, re-check).
+async function revertFix(it, s, run) {
+  const when = new Date(run.finishedAt).toLocaleString();
+  const did = s.fix.action || s.fix.reason || 'the change it made';
+  const ok = confirm(`Revert the fix on “${it.title}”?\n\nThis changes ${current.url}${current.install ? ` (WP Engine install ${current.install})` : ''}:\n\n• A fresh backup of the database and theme is taken first.\n• Claude undoes only what the fix of ${when} changed (${did.slice(0, 160)}${did.length > 160 ? '…' : ''}), restoring from the backup taken just before it (${run.backup.path}). Nothing else is touched.\n• Caches are cleared and the item is checked again. Its approval is cleared, so it asks for a decision again.`);
+  if (!ok) return;
+  try { setRunning(true); const r = await api(`/sites/${current.id}/revert/${tab}`, { method: 'POST', body: { item: it.id, confirm: true } }); follow(r.runId); }
+  catch (e) { setRunning(false); alert(e.message); }
 }
 
 // Screenshot lightbox: the item's screenshots, one at a time, over the app.
@@ -505,6 +519,7 @@ function renderHistory() {
     return el('div', { class: 'fixrun' },
       el('div', {}, el('b', { text: new Date(r.finishedAt).toLocaleString() }), ` · ${states}`),
       r.replyTo ? el('div', { class: 'muted', text: 'Continued Claude’s conversation with your answer.' }) : null,
+      r.kind === 'revert' ? el('div', { class: 'muted', text: `Reverted the fix on “${r.itemTitle || r.items?.[0]}” from the run of ${(tabState(tab).fixRuns || []).find(x => x.id === r.revertOf)?.finishedAt ? new Date(tabState(tab).fixRuns.find(x => x.id === r.revertOf).finishedAt).toLocaleString() : r.revertOf}.` }) : null,
       ...(r.questions || []).map(q => el('div', { class: 'qa-line' }, el('b', { text: `Claude asked (${q.title}): ` }), q.question)),
       r.answer ? el('div', { class: 'qa-line' }, el('b', { text: 'You answered: ' }), r.answer) : null,
       r.backup ? el('div', {}, 'Backup: ', el('code', { text: r.backup.path }), r.backup.size ? ` (${r.backup.size})` : '') : el('div', { class: 'muted', text: 'No backup (no changes were made; fix request only).' }),
