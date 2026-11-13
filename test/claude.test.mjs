@@ -73,8 +73,9 @@ test('the interactive rules (wpeqa rules) keep the wait and cache clearing', () 
 });
 
 test('a headless run is told to work in few SSH calls and start from the site map', () => {
-  assert.match(RULES(site), /Every SSH call to WP Engine takes 10-30 seconds, so work in few calls/);
+  assert.match(RULES(site), /every WP-CLI command \(wp …\) takes 5-10 seconds.*So work in few calls/s);
   assert.doesNotMatch(RULES(site, { headless: false }), /work in few calls/);
+  assert.match(RULES(site), /scp does not work through WP Engine's gateway/); // a real run lost two turns to scp
 });
 
 test('the site map goes into the first prompt, before the items', async () => {

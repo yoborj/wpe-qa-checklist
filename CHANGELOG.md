@@ -5,7 +5,42 @@ tagged `vX.Y.Z` with a GitHub release.
 
 ## Unreleased
 
+### Added
+- **Why it's still failing.** Every Fix Failed card shows what the fix did (Claude's own summary, or the app's command
+  output), what the re-check still finds, and what to do next (Confirm fix if what's left is on purpose, else retry).
+- **Child findings.** A check can report separate problems as child cards under one item, each with its own status,
+  note and Approve / Decline. Children are items of their own (`<item>::<finding>` in the CLI), so fix runs, fix
+  requests, Fix Failed and Fixed work for each; the item becomes a container showing the worst of them, and a finding
+  a later run no longer reports passes (an approved one moves to Fixed). The tiles count the children, not the item.
+- **"Everything rendered is editable" is automatic** (WP Site Audit). It reviews the custom post types and ACF fields
+  over WP-CLI and fetches every post type page, then adds a child finding for each problem: admin labels falling back to
+  "Posts", fields no entry fills in, pages without a meta description, big field groups with no help text, SEO fields
+  stored twice, field groups only in the database, ACF missing from the REST API, URLs that no longer match their
+  entry, plural hub URLs that 404, hub pages titled "Archive", the brand missing from titles, titles over 65
+  characters, abbreviations written two ways, and links between entries typed as slugs.
+- **Old → New URLs arranged like the site**, so the list lines up with a hand-made URL sheet. Run Tool reads both
+  sites' main menus: old pages are grouped by the old menu (its order, sub-pages indented under their parent), then
+  pages not in the menu, sections such as /team/ or /location/ (hub first, entries A–Z with the words every title
+  repeats dropped), legal and thank-you pages, and blog posts. Pages only the new site has are listed in their own
+  groups, in the new menu's order, instead of a separate list.
+  Every level of both menus keeps its depth (Programs › Medical Detox › Benzodiazepine Detox), drawn as a tree; a
+  group's own page is its row (like a sheet's parent row); sections follow the order the site registers its post types
+  (its public REST API), and the blog comes last. Statuses use a URL sheet's wording: No Redirection Needed, Redirect,
+  Needs Attention, New Page (New Site Only). `urls <site> arrange` re-arranges a saved list without testing again.
+
 ### Changed
+- **SSH reuses one connection per WP Engine host** (the app and Claude's fix runs, through `lib/sshbin/ssh`): each call
+  takes about 1 second instead of about 20, which was most of a fix run's time (14 SSH calls in a 2-item run). Claude is
+  told SSH is cheap but each WP-CLI command isn't, and to use rsync, not scp (which WP Engine's gateway refuses).
+- **Runs share one crawl.** What a Run Tool loads (WordPress settings, Greenlight status, sitemap, desktop and phone
+  crawls, internal link check, old-site comparison) is reused by the next module's run on the same site for 15
+  minutes, with a log line saying so: QA Swarm after WP Site Audit took 3 minutes instead of 5.5. A fix run clears it
+  and its re-check never uses it; Shift-click Run Tool (or `run --fresh`) loads everything again.
+- **"Everything rendered is editable" reuses the crawl** for the post type pages it already loaded and fetches only the
+  rest (under 1 minute instead of 3.6 on a 131-entry site).
+- **A fix run re-checks only the findings it touched.** For "Everything rendered is editable", findings read over
+  WP-CLI are re-checked without loading every post type page (18 seconds instead of about 4 minutes); the others keep
+  their last result until the next full run.
 - **Faster fix runs.** The verify step re-checks only the items the run worked on instead of the whole tab (two
   items: about 40 seconds instead of 7-9 minutes; a homepage-only check no longer crawls every page). Background Claude
   gets a site map read in one SSH call (theme files, plugins, post types, ACF field groups, pages) and is told to batch

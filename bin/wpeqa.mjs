@@ -4,12 +4,13 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, TABS, templates, listSites, getSite, saveSite, getState, setItem } from '../lib/store.mjs';
-import { URLS_TAB, URL_STATUSES, CHOICES, effective, keepInfo, setUrlRow, recheckKeep, planRedirects } from '../lib/redirects.mjs';
+import { URLS_TAB, URL_STATUSES, CHOICES, effective, keepInfo, setUrlRow, recheckKeep, planRedirects, relayoutUrls } from '../lib/redirects.mjs';
 import { LIVE_TAB, liveChecks, confirmLive, liveConfirmed } from '../lib/live.mjs';
 import { checkJob, fixJob, legacyJob } from '../lib/jobs.mjs';
 import { LEGACY_STATUSES, legacyEffective, legacyRows, setLegacyRow } from '../lib/legacy.mjs';
 import fs from 'node:fs';
 import { planFixes } from '../lib/fixers.mjs';
+import { withChildren, isContainer } from '../lib/children.mjs';
 import { report, tabGreenlight } from '../lib/report.mjs';
 import { readGreenlight, greenlightLine, glSummary, FEATURES, RECOMMENDED, INFORMATIONAL, sortedAlerts, alertLine, GREENLIGHT_MIN_VERSION } from '../lib/greenlight.mjs';
 import { liveSite } from '../lib/live.mjs';
@@ -23,7 +24,8 @@ const HELP = `WPE QA Checklist ${VERSION} — command line
   sites                                  List saved sites
   add <staging-url> [--prod LIVE-URL] [--name N] [--install I] [--admin-email E] [--reference OLD-URL] [--max-pages N]
                                          Add (or update) a site by the URL to audit; the WP Engine install is detected
-  run <site> [tab|all]                   Run Tool for one tab or all four (read-only)
+  run <site> [tab|all] [--fresh]         Run Tool for one tab or all four (read-only). Runs share one crawl for 15 min;
+                                         --fresh loads everything again
   status <site> [tab]                    Pass/fail counts and every failing or flagged item (with ids)
   report <site> <tab>                    Markdown report of a tab
   approve <site> <tab> <item-id…|--all-failing> [--note TEXT]
@@ -43,6 +45,7 @@ const HELP = `WPE QA Checklist ${VERSION} — command line
                                          Claude conversation (backup first, then verify). The web app shows the same box.
   confirm-live <site> [--yes]            QA — After Launch runs on the live site only: check it, then (--yes) confirm it
   urls <site> run                        Old → New URLs: test every old-site page on the new site (read-only)
+  urls <site> arrange                    Re-arrange the saved list like the sites' menus and post types (read-only, no re-test)
   urls <site> [status]                   The URL list: status, proposed new URL, decision (ids in brackets)
   urls <site> approve <id…|--all-redirects>   /  urls <site> decline <id…>
   urls <site> set <id> </new-path>      Set the new page of a row that needs attention (the scan sets status)
@@ -85,11 +88,14 @@ function site(ref) {
   return s || die(`No saved site matches "${ref}". Add it first: node bin/wpeqa.mjs add <url>`);
 }
 const tabArg = (t, allowAll) => (allowAll && (!t || t === 'all')) ? TABS : TABS.includes(t) ? [t] : die(`Tab must be one of: ${TABS.join(', ')}${allowAll ? ', all' : ''}.`);
-const items = tab => templates()[tab].sections.flatMap(s => s.items.map(i => ({ ...i, section: s.title })));
+// A tab's items, with each container's child findings (from the site's state) listed after it.
+const items = (tab, st) => withChildren(templates()[tab], st).sections.flatMap(s => s.items.map(i => ({ ...i, section: s.title })));
 
 function status(s, tab) {
   const st = getState(s.id).tabs[tab] || { items: {}, runs: [] };
-  const list = items(tab).map(i => ({ id: i.id, title: i.title, section: i.section, auto: !!i.check, ...(st.items[i.id] || {}), status: st.items[i.id]?.status || 'todo' }));
+  const all = items(tab, st); const titleOf = Object.fromEntries(all.map(i => [i.id, i.title]));
+  // Containers are summed up by their children: a child is listed as "Parent › Child".
+  const list = all.filter(i => !isContainer(i, st.items)).map(i => ({ id: i.id, title: i.parent ? `${titleOf[i.parent]} › ${i.title}` : i.title, section: i.section, auto: !!i.check, ...(st.items[i.id] || {}), status: st.items[i.id]?.status || 'todo' }));
   const counts = list.reduce((c, i) => (c[i.status] = (c[i.status] || 0) + 1, c), {});
   const row = i => ({ id: i.id, title: i.title, status: i.status, summary: i.tool?.summary, details: (i.tool?.details || []).slice(0, 6), decision: i.decision || null, fix: i.fix?.state || null, confirmed: !!i.confirmed, note: i.note || '' });
   // As in the web app: attention = failing or flagged items still waiting for a decision; decided items are listed
@@ -138,7 +144,7 @@ try {
       const s = site(rest[0]);
       for (const tab of tabArg(rest[1], true)) {
         if (tab === LIVE_TAB && !liveConfirmed(s)) { console.log(`\nSkipping QA — After Launch: it runs on the live site only. Confirm it first: node bin/wpeqa.mjs confirm-live ${s.id} --yes`); continue; }
-        await checkJob({ site: s, tab, log: undefined });
+        await checkJob({ site: s, tab, log: undefined, fresh: flags.fresh === true });
         if (!json) printStatus(status(s, tab));
       }
       if (json) out(null, tabArg(rest[1], true).filter(t => t !== LIVE_TAB || liveConfirmed(s)).map(t => status(s, t)));
@@ -156,7 +162,7 @@ try {
       let ids = rest.slice(2);
       if (flags['all-failing']) ids = status(s, tab).attention.map(a => a.id);
       if (!ids.length) die('Which items? Pass item ids (see `status`) or --all-failing.');
-      const known = new Set(items(tab).map(i => i.id));
+      const known = new Set(items(tab, getState(s.id).tabs[tab]).map(i => i.id));
       for (const id of ids) { if (!known.has(id)) die(`Unknown item id: ${id}`); setItem(s.id, tab, id, { decision: cmd === 'approve' ? 'approve' : 'decline', ...(typeof flags.note === 'string' ? { note: flags.note } : {}) }); }
       out(`${cmd === 'approve' ? 'Approved' : 'Declined'} ${ids.length} item${ids.length === 1 ? '' : 's'}.`, { ids });
       break;
@@ -209,6 +215,7 @@ try {
       const rows = () => getState(s.id).urls?.rows || [];
       const line = r => { const e = effective(r); return `  [${r.id}] ${URL_STATUSES[e.status].padEnd(16)} ${r.oldPath}${e.target ? ' → ' + e.target : ''}${e.status !== 'none' && e.target ? `  (${CHOICES[e.choice]}${keepInfo(r) && !keepInfo(r).ok ? `; can't keep: ${keepInfo(r).why}` : ''})` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}${e.status === 'attention' && r.auto?.alt?.length ? `\n      matches: ${r.auto.alt.join('  |  ')}` : ''}`; };
       if (sub === 'run') { await checkJob({ site: s, tab: URLS_TAB, log: undefined }); if (!json) rows().forEach(r => console.log(line(r))); else out(null, rows()); break; }
+      if (sub === 'arrange') { const g = await relayoutUrls(s, l => console.log(l)); out(g.map(x => `${x.title} (${x.items.length})`).join(' · '), g); break; }
       const mapById = () => new Map(rows().map(m => [m.id, m]));
       const lline = r => { const e = legacyEffective(r, mapById()); return `  [${r.id}] ${LEGACY_STATUSES[e.status].padEnd(16)} ${r.from}${r.gone ? `  ${r.code} gone` : e.target ? `  ${r.code} → ${e.target}` : ''}  (${r.source}${r.hits !== null ? `, ${r.hits} hits` : ''})${e.reason ? `\n      ${e.reason}` : ''}${r.decision ? `  (${r.decision}d)` : ''}${r.applied ? `  [${r.applied.state}]` : ''}`; };
       const showLegacy = () => { const L = legacyRows(s.id); if (!L.length) return; console.log(`\nOld site's redirects (${(getState(s.id).urls?.legacy?.files || []).map(f => f.name).join(', ')}):`); L.forEach(r => console.log(lline(r))); (getState(s.id).urls?.legacy?.notes || []).forEach(n => console.log('  note: ' + n)); };

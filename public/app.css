@@ -184,6 +184,18 @@ button.count.c-decide.is-flagged[aria-pressed="true"] { box-shadow: 0 0 0 3px va
 .item details ul { margin: 10px 0 0; padding: 12px 14px 12px 32px; max-height: 300px; overflow: auto; font-family: var(--mono); font-size: 14px; background: var(--surface-2); border-radius: 10px; display: grid; gap: 4px; }
 .item details li { word-break: break-word; }
 .item-side { display: grid; gap: 8px; justify-items: end; align-content: start; }
+/* Child findings: one card per finding a check reported, nested under its item (the container). Each has its own
+   status, note and Approve / Decline. */
+.kids { grid-column: 1 / -1; display: grid; gap: 12px; margin-top: 4px; padding-left: 16px; border-left: 2px solid var(--line); }
+.item.is-child { padding: 16px 20px 14px 24px; background: var(--surface-2); box-shadow: none; gap: 8px 22px; }
+.item.is-child:hover { box-shadow: var(--shadow); }
+.item.is-child::before { top: 14px; bottom: 14px; }
+.item.is-child .item-title { font-size: 16.5px; }
+.item.is-child .item-summary { font-size: 15.5px; }
+.item.is-child .flagbar, .item.is-child .movedbar { margin: -4px -8px 2px -12px; font-size: 13.5px; }
+.item.is-child .item-extra input { background: var(--surface); }
+.item.is-container > .item-extra:empty { display: none; }
+.chip.kid { background: var(--surface); color: var(--faint); border: 1px solid var(--line); }
 
 /* Status switch */
 .seg { display: inline-flex; padding: 3px; gap: 3px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
@@ -311,6 +323,41 @@ dialog.lightbox::backdrop { background: rgba(5, 8, 12, .82); }
 .us-redirect { background: var(--warn-soft); color: var(--warn); }
 .us-attention { background: var(--fail-soft); color: var(--fail); }
 .us-unused { background: var(--surface-2); color: var(--faint); }
+/* Compact rows, close to a URL sheet's density: one line per page where it fits. */
+.utable:not(.lt) td { padding: 10px 18px; }
+.utable:not(.lt) .upage b { display: inline; font-size: 15.5px; margin: 0 10px 0 0; }
+.utable:not(.lt) .uold, .utable:not(.lt) .utarget { font-size: 14px; }
+.utable:not(.lt) .ustat small { margin-top: 4px; font-size: 13.5px; }
+.utable:not(.lt) .ustatus { padding: 4px 11px; font-size: 13px; }
+.utable:not(.lt) .fix button { padding: 5px 13px; font-size: 13.5px; }
+.utable:not(.lt) .uchoice button { padding: 4px 10px; font-size: 13px; }
+/* A group's own page (What We Do, Team, Services): the group's row, like a sheet's parent row. */
+.urow.is-parent td { background: var(--surface-2); border-top: 2px solid var(--line-2); }
+.urow.is-parent .upage b { font-weight: 800; font-size: 16px; text-transform: uppercase; letter-spacing: .04em; }
+/* Arranged like the site: a heading row per group (old menu item, section, new-only pages), sub-pages indented. */
+.utable tr.ugroup th { position: static; padding: 14px 26px 10px; font-size: 13.5px; color: var(--ink); background: var(--surface-2); border-top: 1px solid var(--line); text-transform: uppercase; letter-spacing: .08em; }
+.utable tr.ugroup th small { margin-left: 10px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--faint); }
+.utable tr.ugroup.is-new th { color: var(--accent); }
+/* Levels: each one indents 26px and draws a tree connector (a vertical guide per level and an elbow to the row). */
+.urow .upage { position: relative; }
+.urow[data-depth="1"] .upage { padding-left: 56px; }
+.urow[data-depth="2"] .upage { padding-left: 82px; }
+.urow[data-depth="3"] .upage { padding-left: 108px; }
+.urow[data-depth="4"] .upage { padding-left: 134px; }
+.urow.is-sub .upage::before { content: ""; position: absolute; top: 0; bottom: 50%; width: 14px; border-left: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); border-bottom-left-radius: 6px; }
+.urow[data-depth="1"] .upage::before { left: 36px; }
+.urow[data-depth="2"] .upage::before { left: 62px; }
+.urow[data-depth="3"] .upage::before { left: 88px; }
+.urow[data-depth="4"] .upage::before { left: 114px; }
+.urow[data-depth="2"] .upage::after, .urow[data-depth="3"] .upage::after, .urow[data-depth="4"] .upage::after { content: ""; position: absolute; top: 0; bottom: 0; left: 36px; border-left: 1px solid var(--line); }
+.urow.is-context td { padding-top: 12px; padding-bottom: 8px; }
+.urow.is-context .upage b { display: inline; margin-right: 12px; font-size: 15.5px; font-weight: 700; color: var(--faint); }
+.urow.is-context .uold { font-size: 14px; color: var(--faint); }
+.urow[data-status="ctx"] td:first-child { border-left-color: transparent; }
+.urow.is-new td { padding-top: 14px; padding-bottom: 14px; }
+.urow.is-new .upage b { font-size: 16.5px; color: var(--body); }
+.urow[data-status="new"] td:first-child { border-left-color: var(--accent-soft); }
+.us-new { background: var(--accent-soft); color: var(--accent); }
 .lcard { display: grid; gap: 18px; padding: 26px 30px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); transition: border-color .15s, background .15s; }
 .lcard.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface)); }
 .lcard h3 { margin: 0 0 6px; color: var(--ink); font-size: 19px; letter-spacing: -.01em; }
@@ -422,3 +469,12 @@ body.readonly #sections button, body.readonly #sections input, body.readonly #se
 .reportitem:hover, .reportitem:focus-visible { background: var(--accent-soft); }
 .reportitem b { white-space: nowrap; font-weight: 700; }
 .reportitem span { color: var(--accent); font-size: 13.5px; white-space: nowrap; }
+
+/* Fix Failed: why it's still failing (what the fix did, what the check still finds, what to do next). */
+.failwhy { display: grid; gap: 8px; margin-top: 4px; padding: 12px 14px; border-radius: 12px; background: var(--pending-soft); border: 1px solid color-mix(in srgb, var(--pending) 45%, transparent); font-size: 15px; }
+.failwhy-title { color: var(--pending); font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.failwhy dl { margin: 0; display: grid; gap: 2px; }
+.failwhy dt { color: var(--faint); font-size: 13px; font-weight: 700; margin-top: 4px; }
+.failwhy dd { margin: 0; color: var(--ink); display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.failwhy dd code { white-space: pre-wrap; font-size: 13px; }
+.failwhy-next { margin: 0; color: var(--body); font-size: 14px; }

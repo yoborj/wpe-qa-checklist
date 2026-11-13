@@ -1,6 +1,6 @@
 // WPE QA Checklist front end (no build step).
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch', 'urls'];
-const URLST = { none: 'Same URL', redirect: 'URL changed', attention: 'Needs attention' };
+const URLST = { none: 'No Redirection Needed', redirect: 'Redirect', attention: 'Needs Attention' }; // a URL sheet's own wording
 // Same rules as lib/redirects.mjs keepInfo/effective: the "can keep" check belongs to the page in use.
 const keepOf = r => (r.target !== undefined ? r.keep : r.auto?.keep);
 const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (status !== 'attention' && keepOf(r)?.ok ? 'keep' : 'new') }; };
@@ -63,9 +63,20 @@ function fixPill(s) {
   return f ? { cls: f.state, text: fixLabel(f), title: f.reason || f.action || '' } : null;
 }
 const copy = async (text, btn) => { try { await navigator.clipboard.writeText(text); const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500); } catch { prompt('Copy this:', text); } };
-const pendingFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && !(['verified', 'manual', 'question'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
+// Child findings (same rules as lib/children.mjs; keep the two in step). A check can report separate findings as child
+// cards under one item. Each child is its own item in the state (`<parent>::<key>`) with its own status, note and
+// Approve / Decline; the parent becomes a container that shows them and that nobody decides on.
+const SEP = '::';
+const childItems = (it, items = {}) => { const pre = it.id + SEP; return Object.keys(items).filter(id => id.startsWith(pre) && items[id]?.tool).sort((a, b) => (items[a].tool.order ?? 1e3) - (items[b].tool.order ?? 1e3) || a.localeCompare(b)).map(id => ({ id, title: items[id].tool.title || id.slice(pre.length), description: items[id].tool.description || '', owner: it.owner, ownerLabel: it.ownerLabel, check: it.check, parent: it.id })); };
+const kidsOf = (t, it) => (it.parent ? [] : childItems(it, tabState(t).items));
+const isContainer = (t, it) => kidsOf(t, it).length > 0;
+// The checklist with each container's children after it, and the items that count (tiles, badges, fixes): every
+// item except containers, whose children count instead.
+const tplOf = t => templates[t] && { ...templates[t], sections: templates[t].sections.map(sec => ({ ...sec, items: sec.items.flatMap(it => [it, ...kidsOf(t, it)]) })) };
+const countable = t => tplOf(t).sections.flatMap(s => s.items).filter(it => !isContainer(t, it));
+const pendingFixes = t => countable(t).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && !(['verified', 'manual', 'question'].includes(s.fix?.state) && s.fix.toolAt === s.tool?.at); });
 // Approved items an earlier fix run left in a fix request (same finding): "Retry fix request" runs them again.
-const retryFixes = t => templates[t].sections.flatMap(s => s.items).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && s.fix?.state === 'manual' && s.fix.toolAt === s.tool?.at; });
+const retryFixes = t => countable(t).filter(it => { const s = tabState(t).items[it.id]; return s && s.decision === 'approve' && ['fail', 'warn'].includes(s.status) && !s.confirmed && s.fix?.state === 'manual' && s.fix.toolAt === s.tool?.at; });
 let fixRetry = false;
 // Cards you just decided on stay in the current view (with a note) until you pick another tile, tab or site.
 const kept = new Set();
@@ -140,7 +151,7 @@ function render() {
       return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; kept.clear(); store.set('wpeqa.tab', t); render(); } }, 'Old → New URLs', u.runs?.length ? el('span', { class: 'badge' + (open ? '' : ' ok'), text: open ? String(open) : '✓' }) : null);
     }
     if (t === 'after-launch' && !(data.state.prod && current.prodUrl && data.state.prod.url === current.prodUrl)) return el('button', { role: 'tab', 'aria-selected': String(t === tab), title: 'Unlocks once the production site is confirmed live', onclick: () => { tab = t; kept.clear(); store.set('wpeqa.tab', t); render(); } }, templates[t].title, el('span', { class: 'badge lock', text: '🔒' }));
-    const tpl = templates[t]; const items = tpl.sections.flatMap(s => s.items);
+    const tpl = templates[t]; const items = countable(t);
     const bad = items.filter(i => isBad(t, i)).length;
     const ran = tabState(t).runs?.length;
     return el('button', { role: 'tab', 'aria-selected': String(t === tab), onclick: () => { tab = t; kept.clear(); store.set('wpeqa.tab', t); render(); } }, tpl.title, ran ? el('span', { class: 'badge' + (bad ? '' : ' ok'), text: bad ? String(bad) : '✓' }) : null);
@@ -163,9 +174,9 @@ function render() {
   $('applyFixes').textContent = pend ? `Apply fixes (${pend})` : `Retry fix request (${retry})`;
   $('applyFixes').title = fixRetry ? 'These approved items were left in a fix request by an earlier run. Run them again, for example with Claude.' : '';
   renderHistory(); renderAsk();
-  $('runTool').title = `Run the automatic ${tpl.title} checks on ${current.name}`;
+  $('runTool').title = `Run the automatic ${tpl.title} checks on ${current.name}. Reuses the crawl from a run in the last 15 minutes; Shift-click to load everything again.`;
 
-  const items = tpl.sections.flatMap(s => s.items);
+  const items = countable(tab); // child findings count one by one; their container doesn't
   const inBucket = Object.fromEntries(Object.keys(BUCKETS).map(b => [b, items.filter(i => bucketOf(tab, i) === b).length]));
   // Tile counts use the same rule as the list (tileHas). All is every item; every other tile is a part of it.
   const n = key => items.filter(i => tileHas(i, key)).length;
@@ -199,6 +210,8 @@ function render() {
 // and the list both use it, so they always agree. All = every item; Passed = passes now or Fixed; Needs Attention =
 // fails or needs a look with no decision yet; the Fixes tiles = that decided view.
 function tileHas(it, key = filter) {
+  // A container shows wherever one of its child findings does (it doesn't count itself: see countable()).
+  if (isContainer(tab, it)) return key === 'all' || key === 'auto' || kidsOf(tab, it).some(k => tileHas(k, key));
   const b = bucketOf(tab, it), st = statusOf(tab, it);
   if (BUCKETS[key]) return b === key;
   switch (key) {
@@ -226,14 +239,36 @@ function renderSecNav(tpl) {
   if (!secSel[tab]) secSel[tab] = 'all';
   const pick = t => { secSel[tab] = t; store.set('wpeqa.sec', JSON.stringify(secSel)); applyFilter(); window.scrollTo({ top: $('secNav').offsetTop - 90, behavior: 'smooth' }); };
   const badge = items => {
-    const shown = items.filter(itemShown); const st = shown.map(i => statusOf(tab, i));
+    const shown = items.filter(i => !isContainer(tab, i) && itemShown(i)); const st = shown.map(i => statusOf(tab, i));
     const cls = shown.some(i => isBad(tab, i)) ? ' bad' : shown.length && st.every(x => x === 'pass') ? ' ok' : ''; // red: still needs a decision
     return el('span', { class: 'sbadge' + cls, text: String(shown.length) });
   };
-  const count = items => items.filter(itemShown).length;
+  const count = items => items.filter(i => !isContainer(tab, i) && itemShown(i)).length;
   $('secNav').replaceChildren(
     el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === 'all'), onclick: () => pick('all') }, 'All', badge(secs.flatMap(s => s.items))),
     ...secs.map(sec => el('button', { type: 'button', 'aria-pressed': String(secSel[tab] === sec.title), class: count(sec.items) ? null : 'is-empty', title: count(sec.items) ? null : 'Nothing in this section for the picked tile', onclick: () => pick(sec.title) }, sec.title, badge(sec.items))));
+}
+
+// Fix Failed cards: why it's still failing. What the fix did (Claude's own summary, or the app's command output), what
+// the re-check still finds, and what to do next.
+function failWhy(it, s) {
+  if (bucketOf(tab, it) !== 'approved' || !s.fix) return null;
+  const f = s.fix, who = f.by === 'claude' ? 'Claude' : 'The app';
+  const when = f.at ? new Date(f.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  const did = f.state === 'failed'
+    ? [`${who}'s fix didn't complete${f.action ? ` (${f.action})` : ''}.`, ...(f.output || []).slice(-4)].filter(Boolean)
+    : [f.action || f.reason || `${who} reported the fix as done.`];
+  const stale = f.toolAt !== (s.tool?.at || null);
+  return el('div', { class: 'failwhy', role: 'note' },
+    el('b', { class: 'failwhy-title', text: 'Why it\u2019s still failing' }),
+    el('dl', {},
+      el('dt', { text: `What the fix did${when ? ` · ${when}` : ''}` }),
+      el('dd', {}, ...did.map((d, i) => el(i && f.state === 'failed' ? 'code' : 'span', { text: d }))),
+      el('dt', { text: stale ? 'What the latest check finds' : 'What the re-check after the fix still finds' }),
+      el('dd', { text: s.tool?.summary || 'The check still fails.' })),
+    SNAP ? null : el('p', { class: 'failwhy-next', text: f.state === 'failed'
+      ? 'Next: look at the output above, then Retry fix request or fix it by hand.'
+      : 'Next: if what\u2019s left is on purpose (something you chose to skip), press Confirm fix. Otherwise retry the fix or fix it by hand.' }));
 }
 
 function itemRow(it) {
@@ -252,7 +287,10 @@ function itemRow(it) {
     : el('span', { class: 'src', text: s.source === 'manual' ? `you · ${s.at ? ago(s.at) : ''}` : 'manual check' });
   const details = s.tool?.details?.length ? el('details', {}, el('summary', { text: `${s.tool.details.length} detail${s.tool.details.length === 1 ? '' : 's'}` }), el('ul', {}, s.tool.details.map(d => el('li', {}, linkify(String(d)))))) : null;
   let t; const note = SNAP ? (s.note ? el('p', { class: 'item-note' }, el('b', { text: 'Note: ' }), s.note) : null) : el('input', { type: 'text', value: s.note || '', placeholder: 'Add a note…', 'aria-label': `Note for ${it.title}`, oninput: e => { clearTimeout(t); t = setTimeout(() => api(`/sites/${current.id}/items/${tab}/${encodeURIComponent(it.id)}`, { method: 'PUT', body: { note: e.target.value } }).catch(() => {}), 600); } });
-  const fix = !SNAP && ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
+  // A container: its check reported separate findings, shown as child cards; each child gets the decision, not this card.
+  const kids = kidsOf(tab, it), box = kids.length > 0;
+  const kidsWaiting = kids.filter(k => { const ks = tabState(tab).items[k.id] || {}; return ['fail', 'warn'].includes(ks.status) && !ks.decision; }).length;
+  const fix = !SNAP && !box && ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) }),
     // Confirm fix: the approved fix is done but the check can't verify it. Moves the item to Done until the finding changes.
@@ -260,21 +298,24 @@ function itemRow(it) {
       title: s.confirmed ? 'Undo: move it back to Fix Failed.' : 'The fix is done, but the check can’t verify it. Moves this item to Fixed until a later run finds something different.',
       onclick: () => save({ confirm: !s.confirmed }) }) : null) : null;
   // Flagged: it fails or needs a look and nobody has approved or declined the fix yet. The card stands out until decided.
-  const flagged = ['fail', 'warn'].includes(status) && !s.decision;
-  return el('article', { class: 'item' + (flagged ? ' is-flagged' : ''), 'data-id': it.id, 'data-status': shown, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
+  const flagged = box ? kidsWaiting > 0 : ['fail', 'warn'].includes(status) && !s.decision;
+  const flagText = box ? `${kidsWaiting} finding${kidsWaiting === 1 ? '' : 's'} below need${kidsWaiting === 1 ? 's' : ''} a decision` : 'Approve the fix or Decline it (bottom right).';
+  return el('article', { class: 'item' + (flagged ? ' is-flagged' : '') + (box ? ' is-container' : '') + (it.parent ? ' is-child' : ''), 'data-id': it.id, 'data-status': shown, 'data-auto': it.check ? '1' : '0', 'data-bucket': bucketOf(tab, it) || '' },
     kept.has(it.id) && !tileHas(it) ? el('div', { class: 'movedbar', role: 'note' }, el('b', { text: `Moved to ${movedTo(it)}` }), el('span', { text: 'Stays here until you pick another tile or tab.' })) : null,
-    flagged ? el('div', { class: 'flagbar', role: 'note' }, el('b', { text: SNAP ? '\u2691 Needs a decision' : '\u2691 Needs your decision' }), SNAP ? null : el('span', { text: 'Approve the fix or Decline it (bottom right).' })) : null,
+    flagged ? el('div', { class: 'flagbar', role: 'note' }, el('b', { text: SNAP ? '\u2691 Needs a decision' : '\u2691 Needs your decision' }), SNAP && !box ? null : el('span', { text: flagText })) : null,
     el('div', { class: 'item-main' },
-      el('div', { class: 'item-title' }, it.title, it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
-      el('p', { class: 'item-desc', title: it.description, text: it.description }),
+      el('div', { class: 'item-title' }, it.parent ? el('span', { class: 'chip kid', text: 'Finding' }) : null, it.title, !it.parent && it.owner ? el('span', { class: 'chip', text: it.ownerLabel || it.owner }) : null, !it.parent && it.check ? el('span', { class: 'chip auto', text: 'Auto' }) : null),
+      it.description ? el('p', { class: 'item-desc', title: it.description, text: it.description }) : null,
       s.tool?.summary ? el('p', { class: 'item-summary' }, linkify(s.tool.summary)) : null,
+      failWhy(it, s),
       details,
       s.tool?.shots?.length && ['fail', 'warn'].includes(s.tool.status) ? el('div', { class: 'shots' }, s.tool.shots.map((sh, i) => el('a', { class: 'shot', href: sh.file, title: `${sh.page} · ${sh.label} (click to enlarge)`, onclick: e => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); openShots(s.tool.shots, i); } },
         el('img', { src: sh.file, alt: `${sh.label} on ${sh.page}`, loading: 'lazy', 'data-kind': sh.kind || 'crop' }),
         el('span', { text: `${sh.page} · ${sh.label}${sh.found ? '' : ' (not pinpointed; page view)'}` })))) : null,
       s.tool?.suggestion && ['fail', 'warn'].includes(s.tool.status) ? el('p', { class: 'item-suggest' }, el('strong', { text: 'How to fix' }), s.tool.suggestion.text, s.tool.suggestion.auto ? el('span', { class: 'chip auto', text: 'App can fix' }) : null) : null),
-    el('div', { class: 'item-side' }, seg, src, (p => p ? el('span', { class: `fixstate fs-${p.cls}`, title: p.title, text: p.text }) : null)(fixPill(s))),
-    el('div', { class: 'item-extra' }, note, fix));
+    el('div', { class: 'item-side' }, seg, src, box ? null : (p => p ? el('span', { class: `fixstate fs-${p.cls}`, title: p.title, text: p.text }) : null)(fixPill(s))),
+    el('div', { class: 'item-extra' }, note, fix),
+    box ? el('div', { class: 'kids', role: 'group', 'aria-label': `Findings for ${it.title}` }, kids.map(k => itemRow(k))) : null);
 }
 
 // Screenshot lightbox: the item's screenshots, one at a time, over the app.
@@ -316,18 +357,22 @@ function countTile(key, cls, n, label, title, display) {
 
 function applyFilter() {
   document.querySelectorAll('#counts [data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
-  const byId = tab !== 'urls' && templates[tab] ? Object.fromEntries(templates[tab].sections.flatMap(s => s.items).map(i => [i.id, i])) : {};
+  const byId = tab !== 'urls' && templates[tab] ? Object.fromEntries(tplOf(tab).sections.flatMap(s => s.items).map(i => [i.id, i])) : {};
+  // A card shows when it matches the tile or was just decided (kept); a container also while one of its children does.
+  const showCard = it => tileHas(it) || kept.has(it.id) || kidsOf(tab, it).some(k => kept.has(k.id));
   document.querySelectorAll('.item, .urow').forEach(r => {
     const st = r.dataset.status;
     // URL rows: u:none / u:redirect / u:attention (scan status), u:approved, u:done. Checklist items: tileHas() decides.
     const hide = r.classList.contains('urow')
       ? (filter === 'all' ? false : filter === 'u:approved' ? r.dataset.decision !== 'approve' : filter === 'u:done' ? r.dataset.done !== '1' : filter !== 'u:' + st)
-      : !(byId[r.dataset.id] && (tileHas(byId[r.dataset.id]) || kept.has(r.dataset.id)));
+      : !(byId[r.dataset.id] && showCard(byId[r.dataset.id]));
     r.classList.toggle('hidden-by-filter', hide);
   });
+  // Old → New URLs: a group heading shows while any of its rows does.
+  document.querySelectorAll('tr.ugroup').forEach(h => { let n = h.nextElementSibling, any = false; while (n && !n.classList.contains('ugroup')) { if (!n.classList.contains('hidden-by-filter')) any = true; n = n.nextElementSibling; } h.classList.toggle('hidden-by-filter', !any); });
   // Section pills follow the picked tile. A picked section with nothing for this tile falls back to All.
   $('secNav').hidden = tab === 'urls';
-  const tpl = tab !== 'urls' && templates[tab] && document.querySelector('#sections .item') ? templates[tab] : null;
+  const tpl = tab !== 'urls' && templates[tab] && document.querySelector('#sections .item') ? tplOf(tab) : null;
   if (tpl) {
     const sec = tpl.sections.find(x => x.title === secSel[tab]);
     if (sec && !sec.items.some(itemShown)) secSel[tab] = 'all';
@@ -367,8 +412,9 @@ $('genReport').addEventListener('click', async () => {
   catch (e) { setRunning(false); alert(e.message); }
 });
 
-$('runTool').addEventListener('click', async () => {
-  try { setRunning(true); const r = await api(`/sites/${current.id}/run/${tab}`, { method: 'POST' }); follow(r.runId); }
+// Runs share what the last 15 minutes of runs loaded (crawl, settings); Shift-click loads everything again.
+$('runTool').addEventListener('click', async e => {
+  try { setRunning(true); const r = await api(`/sites/${current.id}/run/${tab}`, { method: 'POST', body: { fresh: e.shiftKey } }); follow(r.runId); }
   catch (e) { setRunning(false); alert(e.message); }
 });
 $('sitePick').addEventListener('change', e => openSite(e.target.value));
@@ -515,7 +561,7 @@ function renderUrls() {
   const approved = rows.filter(r => r.decision === 'approve').length;
   const shownU = { 'u:none': c.none, 'u:redirect': c.redirect, 'u:attention': c.attention, 'u:approved': approved, 'u:done': done };
   if (filter !== 'all' && !shownU[filter]) filter = 'all';
-  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length, 'All', 'Every old page'), countTile('u:none', 'c-pass', c.none, 'Same URL'), countTile('u:redirect', 'c-warn', c.redirect, 'URL Changed'), countTile('u:attention', 'c-fail', c.attention, 'Need Attention'), countTile('u:approved', 'c-approved', approved, 'Approved'), countTile('u:done', 'c-done', done, 'Done')])] : []));
+  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length, 'All', 'Every old page'), countTile('u:none', 'c-pass', c.none, URLST.none), countTile('u:redirect', 'c-warn', c.redirect, URLST.redirect), countTile('u:attention', 'c-fail', c.attention, URLST.attention), countTile('u:approved', 'c-approved', approved, 'Approved'), countTile('u:done', 'c-done', done, 'Done')])] : []));
   if (!rows.length) {
     $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site. Then you can import the old site\'s redirects.')));
     return;
@@ -524,7 +570,8 @@ function renderUrls() {
   const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); for (const f of ['target', 'keep', 'choice']) if (!(f in v)) delete r[f]; render(); }).catch(e => alert(e.message));
   const result = r => { const a = r.applied; if (!a) return null; const keep = a.choice === 'keep'; const t = { verified: ['ok', keep ? 'Old URL kept · verified' : 'Redirected · verified'], applied: ['warn', 'Done · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const list = el('datalist', { id: 'newPages' }, (u.newPages || []).map(p => el('option', { value: p.path, label: p.title || p.path })));
-  const body = rows.map(r => {
+  // One old page: `depth` 1 = a sub-page (indented under its menu parent or section); `label` = its menu label or short name.
+  const rowEl = (r, depth = 0, label = r.page) => {
     const e = eff(r);
     const status = el('span', { class: `ustatus us-${e.status}`, text: URLST[e.status] });
     // "Keep old URL" moves the picked page back, so the picker locks while it's chosen; "Use new URL" unlocks it.
@@ -547,18 +594,38 @@ function renderUrls() {
     const decide = e.status === 'none' ? null : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
       el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target ? null : true, title: e.target ? '' : 'Pick the new page first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
-    return el('tr', { class: 'urow', 'data-status': e.status, 'data-decision': r.decision || '', 'data-done': ['verified', 'applied', 'exists'].includes(r.applied?.state) ? '1' : '0' },
-      el('td', { class: 'upage' }, el('b', { text: r.page }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
+    return el('tr', { class: 'urow' + (depth ? ' is-sub' : ''), 'data-depth': String(Math.min(depth, 4)), 'data-status': e.status, 'data-decision': r.decision || '', 'data-done': ['verified', 'applied', 'exists'].includes(r.applied?.state) ? '1' : '0' },
+      el('td', { class: 'upage' }, el('b', { text: label, title: label !== r.page ? r.page : null }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
       el('td', { class: 'ustat' }, status, el('small', { text: r.auto?.reason || '' })),
       el('td', { class: 'unew' }, alts, target, choice, why),
       el('td', { class: 'udecide' }, decide, result(r)));
-  });
+  };
+  // A page only the new site has: nothing to redirect, listed where it belongs for comparing.
+  const newEl = (it) => el('tr', { class: 'urow is-new' + (it.depth ? ' is-sub' : ''), 'data-depth': String(Math.min(it.depth, 4)), 'data-status': 'new' },
+    el('td', { class: 'upage' }, el('b', { text: it.label }), el('span', { class: 'uold muted', text: 'not on the old site' })),
+    el('td', { class: 'ustat' }, el('span', { class: 'ustatus us-new', text: 'New Page (New Site Only)' })),
+    el('td', { class: 'unew' }, el('a', { class: 'utarget', href: origin + it.path, target: '_blank', rel: 'noopener' }, pathText(it.path))),
+    el('td', { class: 'udecide' }));
+  // A menu parent shown only so its children read as a tree (its own page is listed in an old-site group, or it has none).
+  const ctxEl = (it) => el('tr', { class: 'urow is-context' + (it.depth ? ' is-sub' : ''), 'data-depth': String(Math.min(it.depth, 4)), 'data-status': 'ctx' },
+    el('td', { class: 'upage', colspan: '4' }, el('b', { text: it.label }), it.path ? el('a', { class: 'uold', href: origin + it.path, target: '_blank', rel: 'noopener' }, pathText(it.path)) : null));
+  // Arranged like the site (old menu groups and order, sections, then new-only pages), when the last run saved a layout.
+  const byRow = new Map(rows.map(r => [r.id, r])); const placed = new Set();
+  const groupHead = g => el('tr', { class: 'ugroup' + (g.kind === 'new' ? ' is-new' : '') }, el('th', { colspan: '4' }, g.title,
+    el('small', { text: g.kind === 'new' ? 'new site only' : g.kind === 'unlisted' ? 'old pages not in the menu' : g.kind === 'menu' && g.key !== 'home' ? 'old site menu' : '' })));
+  // A group whose first item is its own page (What We Do, Team, Services) shows that page as the group's row, like a URL
+  // sheet's parent row; groups without a page of their own (About, Others) get a heading row.
+  const itemEl = (it, parent) => { if (it.context) return ctxEl(it); const tr = it.isNew ? newEl(it) : (r => r && (placed.add(r.id), rowEl(r, it.depth, parent ? parent.title : it.label)))(byRow.get(it.id)); if (tr && parent) tr.classList.add('is-parent'); return tr; };
+  const body = u.layout?.length
+    ? [...u.layout.flatMap(g => { const own = g.items[0] && !g.items[0].depth && !g.items[0].context && g.key !== 'unlisted' && g.key !== 'others'; const trs = g.items.map((it, i) => itemEl(it, own && i === 0 ? g : null)).filter(Boolean); return trs.length ? (own ? trs : [groupHead(g), ...trs]) : []; }),
+      ...(rows.some(r => !placed.has(r.id)) ? [groupHead({ title: 'Other pages', kind: 'unlisted' }), ...rows.filter(r => !placed.has(r.id)).map(r => rowEl(r))] : [])]
+    : rows.map(r => rowEl(r));
   $('sections').replaceChildren(legacySection(u, origin), el('section', { class: 'section' },
     el('h2', {}, 'Old URLs', el('small', { text: `${current.referenceUrl.replace(/^https?:\/\//, '')} → ${origin.replace(/^https?:\/\//, '')} · keep the old URL, or 301 it to the new page` })),
     el('div', { class: 'utable-wrap' }, el('table', { class: 'utable' },
       el('thead', {}, el('tr', {}, ['Old page', 'Status', 'New page · which URL to use', ''].map(h => el('th', { text: h })))),
       el('tbody', {}, body))), list,
-    (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to do` }),
+    !u.layout?.length && (u.newOnly || []).length ? el('details', { class: 'unewonly' }, el('summary', { text: `New on the new site (${u.newOnly.length}) · no old page, nothing to do` }),
       el('ul', {}, u.newOnly.map(p => el('li', {}, el('a', { href: origin + p.path, target: '_blank', rel: 'noopener' }, pathText(p.path)), p.title ? el('span', { text: p.title }) : null)))) : null));
   applyFilter();
 }

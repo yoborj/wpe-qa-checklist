@@ -144,9 +144,9 @@
     {
      "id": "polish--editable",
      "title": "Everything rendered is editable",
-     "description": "Every visible section can be edited in wp-admin (ACF field, CPT, Theme Options).",
+     "description": "Every visible section can be edited in wp-admin (ACF field, CPT, Theme Options). Each problem the check finds in the custom post types and fields shows below as its own finding.",
      "owner": "Tech Lead",
-     "check": null
+     "check": "audit.editable"
     },
     {
      "id": "polish--featured",
