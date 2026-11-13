@@ -28,6 +28,15 @@ tagged `vX.Y.Z` with a GitHub release.
   (its public REST API), and the blog comes last. Statuses use a URL sheet's wording: No Redirection Needed, Redirect,
   Needs Attention, New Page (New Site Only). `urls <site> arrange` re-arranges a saved list without testing again.
 
+### Fixed
+- **Apply URL decisions failed with only a PHP warning** on sites with many redirects. WP Engine's WP-CLI silently runs
+  nothing when a script has one very long line, and the redirect list was one ~10 KB line; data now goes in short lines
+  (also the "can it keep its old URL" check). Errors leave out PHP warnings some sites print on every call.
+- **Redirects named "Old site: Just a moment..."**: when the old site answered with a bot check (Cloudflare's "Just a
+  moment..."), its title was taken as the page's name. Bot-check titles are never used now, and redirects are named
+  the way a URL sheet names pages: the old menu label, else a name from the address ("Old site: Detox"), instead of the
+  old page's SEO title; imported ones are "Old site redirect: /old-path/".
+
 ### Changed
 - **SSH reuses one connection per WP Engine host** (the app and Claude's fix runs, through `lib/sshbin/ssh`): each call
   takes about 1 second instead of about 20, which was most of a fix run's time (14 SSH calls in a 2-item run). Claude is
