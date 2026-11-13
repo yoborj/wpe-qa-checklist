@@ -2,7 +2,8 @@
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch', 'urls'];
 const URLST = { none: 'No Redirection Needed', redirect: 'Redirect', attention: 'Needs Attention' }; // a URL sheet's own wording
 // An applied URL decision: done = in place (verified, added, or already there); failed = the apply didn't take.
-const urlDone = r => ['verified', 'applied', 'exists'].includes(r.applied?.state);
+// Declined counts as done too (no redirect wanted, nothing left to do), like a declined checklist item counts as passed.
+const urlDone = r => ['verified', 'applied', 'exists'].includes(r.applied?.state) || (r.decision === 'decline' && !urlFailed(r));
 const urlFailed = r => r.applied?.state === 'failed';
 // The tile an old-site redirect counts under, like a page row: Done once it's in place, Redirect Failed if the apply
 // didn't take, else by its status (Ready → Redirect; Check it / Needs attention → Needs Attention; Not used → nothing to do).
@@ -298,9 +299,10 @@ function itemRow(it) {
   const kids = kidsOf(tab, it), box = kids.length > 0;
   const kidsWaiting = kids.filter(k => { const ks = tabState(tab).items[k.id] || {}; return ['fail', 'warn'].includes(ks.status) && !ks.decision; }).length;
   // Revert fix (Fixed cards whose fix a fix run made, so there's a backup from just before it): undoes it on the site.
-  const fixRun = s.fix?.runId && (tabState(tab).fixRuns || []).find(r => r.id === s.fix.runId);
-  const revert = !SNAP && !box && bucketOf(tab, it) === 'done' && ['verified', 'applied'].includes(s.fix?.state) && fixRun?.backup
-    ? el('button', { type: 'button', class: 'btn ghost revert', text: 'Revert fix', title: `Undo on the site what the fix of ${new Date(fixRun.finishedAt).toLocaleString()} changed`, onclick: () => revertFix(it, s, fixRun) }) : null;
+  // On any card with a fix to undo (the server looks through the item's whole fix history), whatever tile it's under.
+  const rv = data.revertable?.[tab]?.[it.id];
+  const revert = !SNAP && !box && rv
+    ? el('button', { type: 'button', class: 'btn ghost revert', text: 'Revert fix', title: `Undo on the site what the fix of ${new Date(rv.at).toLocaleString()} changed`, onclick: () => revertFix(it, rv) }) : null;
   const fix = !SNAP && !box && ['fail', 'warn'].includes(status) ? el('div', { class: 'fix', role: 'group', 'aria-label': 'Fix decision' },
     el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(s.decision === 'approve'), text: 'Approve', onclick: () => save({ decision: s.decision === 'approve' ? null : 'approve' }) }),
     el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(s.decision === 'decline'), text: 'Decline', onclick: () => save({ decision: s.decision === 'decline' ? null : 'decline' }) }),
@@ -330,9 +332,9 @@ function itemRow(it) {
 }
 
 // Revert fix: confirm what will happen on the site, then run it (backup, Claude undoes that one fix, re-check).
-async function revertFix(it, s, run) {
-  const when = new Date(run.finishedAt).toLocaleString();
-  const did = s.fix.action || s.fix.reason || 'the change it made';
+async function revertFix(it, rv) {
+  const when = new Date(rv.at).toLocaleString(); const run = { backup: { path: rv.backup } };
+  const did = rv.did || 'the change it made';
   const ok = confirm(`Revert the fix on “${it.title}”?\n\nThis changes ${current.url}${current.install ? ` (WP Engine install ${current.install})` : ''}:\n\n• A fresh backup of the database and theme is taken first.\n• Claude undoes only what the fix of ${when} changed (${did.slice(0, 160)}${did.length > 160 ? '…' : ''}), restoring from the backup taken just before it (${run.backup.path}). Nothing else is touched.\n• Caches are cleared and the item is checked again. Its approval is cleared, so it asks for a decision again.`);
   if (!ok) return;
   try { setRunning(true); const r = await api(`/sites/${current.id}/revert/${tab}`, { method: 'POST', body: { item: it.id, confirm: true } }); follow(r.runId); }
@@ -598,7 +600,7 @@ function renderUrls() {
   }
   const origin = new URL(current.url).origin;
   const save = (r, patch) => api(`/sites/${current.id}/urls/${r.id}`, { method: 'PUT', body: patch }).then(v => { Object.assign(r, v); for (const f of ['target', 'keep', 'choice']) if (!(f in v)) delete r[f]; render(); }).catch(e => alert(e.message));
-  const result = r => { const a = r.applied; if (!a) return null; const keep = a.choice === 'keep'; const t = { verified: ['ok', keep ? 'Old URL kept · verified' : 'Redirected · verified'], applied: ['warn', 'Done · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
+  const result = r => { const a = r.applied; if (!a) return r.decision === 'decline' ? el('span', { class: 'ures', text: 'Declined · no redirect' }) : null; const keep = a.choice === 'keep'; const t = { verified: ['ok', keep ? 'Old URL kept · verified' : 'Redirected · verified'], applied: ['warn', 'Done · check it'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const list = el('datalist', { id: 'newPages' }, (u.newPages || []).map(p => el('option', { value: p.path, label: p.title || p.path })));
   // One old page: `depth` 1 = a sub-page (indented under its menu parent or section); `label` = its menu label or short name.
   const rowEl = (r, depth = 0, label = r.page) => {
@@ -691,7 +693,7 @@ function legacySection(u, origin) {
   card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag'); });
   card.addEventListener('dragleave', e => { if (!card.contains(e.relatedTarget)) card.classList.remove('drag'); });
   card.addEventListener('drop', e => { e.preventDefault(); card.classList.remove('drag'); importFile(e.dataTransfer.files[0]); });
-  const result = r => { const a = r.applied; if (!a) return null; const t = { verified: ['ok', 'Copied · verified'], applied: ['warn', a.status ? 'Done · check it' : 'Added'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
+  const result = r => { const a = r.applied; if (!a) return r.decision === 'decline' ? el('span', { class: 'ures', text: 'Declined · no redirect' }) : null; const t = { verified: ['ok', 'Copied · verified'], applied: ['warn', a.status ? 'Done · check it' : 'Added'], exists: ['warn', 'Already in Redirection'], failed: ['bad', 'Not done'] }[a.state] || ['warn', a.state]; return el('span', { class: `ures ${t[0]}`, title: a.error || (a.landed ? `Lands on ${a.landed}` : ''), text: t[1] }); };
   const body = lrows.map(r => {
     const e = leff(r, byId);
     const meta = [r.source, r.hits !== null && r.hits !== undefined ? `${r.hits} hit${r.hits === 1 ? '' : 's'}` : '', r.regex ? 'pattern' : '', !r.gone && r.code !== 301 ? String(r.code) : ''].filter(Boolean).join(' · ');

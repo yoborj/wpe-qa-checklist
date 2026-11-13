@@ -42,11 +42,18 @@ tagged `vX.Y.Z` with a GitHub release.
   the way a URL sheet names pages: the old menu label, else a name from the address ("Old site: Detox"), instead of the
   old page's SEO title; imported ones are "Old site redirect: /old-path/".
 
+- **Apply URL decisions left a redirect pointing at a page that had moved**, reporting it as "Already in Redirection".
+  A redirect the app added earlier (titled "Old site…") now gets its new target when the page it pointed at moved
+  (renamed, or a rename reverted); redirects anyone else made are still left alone. Revert fix also tells Claude where
+  Redirection keeps its targets, so a revert repoints them instead of leaving them on a 404.
+
 ### Changed
 - **Old → New URLs tiles count what's left.** A page whose redirect is in place moves from Redirect / Needs Attention
   to Done; a new **Redirect Failed** tile lists any whose apply didn't take; the Approved tile is gone (Done covers it).
   The old site's imported redirects count and filter the same way: under All the whole section shows (with its import
   box); under another tile only the redirects that belong to it, and the section is hidden when none do.
+  A declined page or redirect counts under Done too (marked "Declined · no redirect"), like a declined checklist item
+  counts as passed.
 - **SSH reuses one connection per WP Engine host** (the app and Claude's fix runs, through `lib/sshbin/ssh`): each call
   takes about 1 second instead of about 20, which was most of a fix run's time (14 SSH calls in a 2-item run). Claude is
   told SSH is cheap but each WP-CLI command isn't, and to use rsync, not scp (which WP Engine's gateway refuses).

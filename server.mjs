@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { ROOT, DATA, TABS, templates, listSites, getSite, saveSite, deleteSite, getState, setItem, runDir } from './lib/store.mjs';
 import { checkJob, fixJob, legacyJob, openQuestions, newRunId, runLogger, revertJob } from './lib/jobs.mjs';
 import { setLegacyRow } from './lib/legacy.mjs';
-import { revertBlocker } from './lib/revert.mjs';
+import { revertBlocker, revertTarget } from './lib/revert.mjs';
 import { claudeStatus } from './lib/claude.mjs';
 import { agency } from './lib/config.mjs';
 import { planFixes, retryIds } from './lib/fixers.mjs';
@@ -75,7 +75,13 @@ const server = http.createServer(async (req, res) => {
       // Imported files are sent without their parsed rules (the rows carry what the page needs).
       const state = getState(site.id); const L = state.urls?.legacy;
       if (L?.files) L.files = L.files.map(({ rules, ...f }) => ({ ...f, count: rules?.length ?? f.count }));
-      return send(res, 200, { site, state, active, reports: reportList(site.id) });
+      // Items with a fix the app or Claude made that can be undone (Revert fix): the latest one per item, by tab.
+      const revertable = {};
+      for (const [tab, t] of Object.entries(state.tabs || {})) for (const id of new Set((t.fixRuns || []).flatMap(r => r.items || []))) {
+        const x = revertTarget(t, id, rid => runDir(site.id, rid));
+        if (x && !x.noBackup) (revertable[tab] ||= {})[id] = { runId: x.run.id, at: x.run.finishedAt, did: x.summary, backup: x.run.backup.path };
+      }
+      return send(res, 200, { site, state, active, reports: reportList(site.id), revertable });
     }
     if (req.method === 'DELETE' && p[1] === 'sites' && !p[3]) { deleteSite(site.id); return send(res, 200, { ok: true }); }
     if (req.method === 'PUT' && p[3] === 'items' && TABS.includes(p[4]) && p[5]) return send(res, 200, setItem(site.id, p[4], p[5], await body(req)).tabs[p[4]].items[p[5]]);
@@ -110,7 +116,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { runId: r.id });
     }
     // Revert fix: undo on the site what one item's earlier fix changed (confirmed in the app).
-    if (req.method === 'POST' && p[3] === 'revert' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the revert first.' }); const why = revertBlocker(getState(site.id).tabs[p[4]], String(b.item || '')); if (why) return send(res, 400, { error: why }); const st = claudeStatus(); if (!st.ok) return send(res, 400, { error: st.reason }); const r = startJob(site, p[4], 'revert', { item: String(b.item) }); return send(res, 200, { runId: r.id }); }
+    if (req.method === 'POST' && p[3] === 'revert' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the revert first.' }); const why = revertBlocker(getState(site.id).tabs[p[4]], String(b.item || ''), rid => runDir(site.id, rid)); if (why) return send(res, 400, { error: why }); const st = claudeStatus(); if (!st.ok) return send(res, 400, { error: st.reason }); const r = startJob(site, p[4], 'revert', { item: String(b.item) }); return send(res, 200, { runId: r.id }); }
     if (req.method === 'POST' && p[3] === 'fix' && TABS.includes(p[4])) { const b = await body(req); if (b.confirm !== true) return send(res, 400, { error: 'Confirm the fix run first.' }); const r = startJob(site, p[4], 'fix', { claude: b.claude === true, retry: b.retry === true }); return send(res, 200, { runId: r.id }); }
     if (req.method === 'GET' && p[3] === 'fix-request' && p[4]) { const f = path.join(runDir(site.id, p[4]), 'fix-request.md'); return fs.existsSync(f) ? send(res, 200, fs.readFileSync(f, 'utf8'), TYPES['.md']) : send(res, 404, { error: 'No fix request for that run.' }); }
     if (req.method === 'GET' && p[3] === 'report' && TABS.includes(p[4])) return send(res, 200, report(site, p[4], templates()[p[4]], getState(site.id)), TYPES['.md']);

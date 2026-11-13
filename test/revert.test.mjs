@@ -16,7 +16,7 @@ test('only a fix a fix run made, with its backup on record, can be reverted', ()
   assert.equal(revertBlocker(tabState({ state: 'verified', runId: 'run1', by: 'claude' }), 'labels'), null);
   assert.match(revertBlocker(tabState(undefined), 'labels'), /none on record/); // passed by itself or fixed by hand
   assert.match(revertBlocker(tabState({ state: 'manual', runId: 'run1' }), 'labels'), /none on record/); // only in a fix request
-  assert.match(revertBlocker(tabState({ state: 'verified', runId: 'gone' }), 'labels'), /no backup on record/);
+  assert.match(revertBlocker({ ...tabState({ state: 'verified', runId: 'run1' }), fixRuns: [{ id: 'run1', items: ['labels'] }] }, 'labels'), /no backup on record/);
 });
 
 test('what Claude ran in that fix run comes from its transcript; the plan names the backup and the other items', () => {
@@ -46,4 +46,23 @@ test("an app fix's own script is what Claude undoes", () => {
 
 test('an item that cannot be reverted says why', () => {
   assert.throws(() => planRevert({ site, template, tabState: tabState(undefined), itemId: 'labels', runDirOf: () => '/x' }), /none on record/);
+});
+
+test('a fix from an earlier run is still revertable after a later run skipped the item; not after it was reverted', () => {
+  // What happened for real: run A renamed URLs (Claude reported "fixed"); run B, later, skipped the item ("manual").
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wpeqa-revert-'));
+  for (const [id, result] of [['runA', 'fixed'], ['runB', 'skipped']]) {
+    fs.mkdirSync(path.join(dir, id));
+    fs.writeFileSync(path.join(dir, id, 'claude-summary.md'), '```json\n' + JSON.stringify({ items: [{ id: 'labels', result, summary: `${result} in ${id}` }] }) + '\n```');
+  }
+  const t = { items: { labels: { status: 'warn', decision: 'approve', fix: { state: 'manual', by: 'claude', runId: 'runB' } } },
+    fixRuns: [{ id: 'runB', finishedAt: '2026-11-13T11:47:00Z', backup, items: ['labels'] }, { id: 'runA', finishedAt: '2026-11-13T08:36:00Z', backup, items: ['labels', 'other'] }] };
+  const runDirOf = id => path.join(dir, id);
+  assert.equal(revertBlocker(t, 'labels', runDirOf), null);
+  const plan = planRevert({ site, template, tabState: t, itemId: 'labels', runDirOf });
+  assert.equal(plan.fixRunId, 'runA'); assert.equal(plan.did, 'fixed in runA'); assert.deepEqual(plan.others, ['other']);
+  // Once a revert run undid run A, there's nothing left to revert.
+  t.fixRuns.unshift({ id: 'rev1', kind: 'revert', revertOf: 'runA', items: ['labels'], states: { reverted: 1 }, backup });
+  assert.match(revertBlocker(t, 'labels', runDirOf), /already reverted/);
+  fs.rmSync(dir, { recursive: true });
 });
