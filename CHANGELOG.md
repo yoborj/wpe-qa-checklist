@@ -38,6 +38,8 @@ tagged `vX.Y.Z` with a GitHub release.
   old page's SEO title; imported ones are "Old site redirect: /old-path/".
 
 ### Changed
+- **Old → New URLs tiles count what's left.** A page whose redirect is in place moves from Redirect / Needs Attention
+  to Done; a new **Redirect Failed** tile lists any whose apply didn't take; the Approved tile is gone (Done covers it).
 - **SSH reuses one connection per WP Engine host** (the app and Claude's fix runs, through `lib/sshbin/ssh`): each call
   takes about 1 second instead of about 20, which was most of a fix run's time (14 SSH calls in a 2-item run). Claude is
   told SSH is cheap but each WP-CLI command isn't, and to use rsync, not scp (which WP Engine's gateway refuses).

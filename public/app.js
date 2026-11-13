@@ -1,6 +1,9 @@
 // WPE QA Checklist front end (no build step).
 const TAB_ORDER = ['qa-swarm', 'wp-site-audit', 'before-launch', 'after-launch', 'urls'];
 const URLST = { none: 'No Redirection Needed', redirect: 'Redirect', attention: 'Needs Attention' }; // a URL sheet's own wording
+// An applied URL decision: done = in place (verified, added, or already there); failed = the apply didn't take.
+const urlDone = r => ['verified', 'applied', 'exists'].includes(r.applied?.state);
+const urlFailed = r => r.applied?.state === 'failed';
 // Same rules as lib/redirects.mjs keepInfo/effective: the "can keep" check belongs to the page in use.
 const keepOf = r => (r.target !== undefined ? r.keep : r.auto?.keep);
 const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (status !== 'attention' && keepOf(r)?.ok ? 'keep' : 'new') }; };
@@ -362,9 +365,9 @@ function applyFilter() {
   const showCard = it => tileHas(it) || kept.has(it.id) || kidsOf(tab, it).some(k => kept.has(k.id));
   document.querySelectorAll('.item, .urow').forEach(r => {
     const st = r.dataset.status;
-    // URL rows: u:none / u:redirect / u:attention (scan status), u:approved, u:done. Checklist items: tileHas() decides.
+    // URL rows: u:none / u:redirect / u:attention (scan status, still to do), u:failed, u:done. Checklist items: tileHas() decides.
     const hide = r.classList.contains('urow')
-      ? (filter === 'all' ? false : filter === 'u:approved' ? r.dataset.decision !== 'approve' : filter === 'u:done' ? r.dataset.done !== '1' : filter !== 'u:' + st)
+      ? (filter === 'all' ? false : filter === 'u:done' ? r.dataset.done !== '1' : filter === 'u:failed' ? r.dataset.failed !== '1' : filter !== 'u:' + st || r.dataset.done === '1' || r.dataset.failed === '1')
       : !(byId[r.dataset.id] && showCard(byId[r.dataset.id]));
     r.classList.toggle('hidden-by-filter', hide);
   });
@@ -556,12 +559,13 @@ function renderUrls() {
     $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: "Add the old site's address" }), el('p', { text: 'Run Tool checks every page of the old site on this one and proposes, for each moved page, keeping its old URL or redirecting to the new one.' }), el('button', { class: 'btn primary', type: 'button', text: 'Set the old site', onclick: () => $('editSite').click() })));
     return;
   }
-  const c = { none: 0, redirect: 0, attention: 0 }; rows.forEach(r => c[eff(r).status]++);
-  const done = rows.filter(r => ['verified', 'applied', 'exists'].includes(r.applied?.state)).length;
-  const approved = rows.filter(r => r.decision === 'approve').length;
-  const shownU = { 'u:none': c.none, 'u:redirect': c.redirect, 'u:attention': c.attention, 'u:approved': approved, 'u:done': done };
+  // A page whose redirect is in place counts under Done, one whose apply failed under Redirect Failed; the status
+  // tiles count only what's still to do.
+  const c = { none: 0, redirect: 0, attention: 0 }; rows.filter(r => !urlDone(r) && !urlFailed(r)).forEach(r => c[eff(r).status]++);
+  const done = rows.filter(urlDone).length, failed = rows.filter(urlFailed).length;
+  const shownU = { 'u:none': c.none, 'u:redirect': c.redirect, 'u:attention': c.attention, 'u:failed': failed, 'u:done': done };
   if (filter !== 'all' && !shownU[filter]) filter = 'all';
-  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length, 'All', 'Every old page'), countTile('u:none', 'c-pass', c.none, URLST.none), countTile('u:redirect', 'c-warn', c.redirect, URLST.redirect), countTile('u:attention', 'c-fail', c.attention, URLST.attention), countTile('u:approved', 'c-approved', approved, 'Approved'), countTile('u:done', 'c-done', done, 'Done')])] : []));
+  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length, 'All', 'Every old page'), countTile('u:none', 'c-pass', c.none, URLST.none), countTile('u:redirect', 'c-warn', c.redirect, URLST.redirect), countTile('u:attention', 'c-fail', c.attention, URLST.attention), countTile('u:failed', 'c-fail' + (failed ? ' is-flagged' : ''), failed, 'Redirect Failed', 'Approved redirects that could not be added or that don\u2019t land where they should'), countTile('u:done', 'c-done', done, 'Done', 'Redirects in place and verified')])] : []));
   if (!rows.length) {
     $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site. Then you can import the old site\'s redirects.')));
     return;
@@ -594,7 +598,7 @@ function renderUrls() {
     const decide = e.status === 'none' ? null : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
       el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target ? null : true, title: e.target ? '' : 'Pick the new page first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
-    return el('tr', { class: 'urow' + (depth ? ' is-sub' : ''), 'data-depth': String(Math.min(depth, 4)), 'data-status': e.status, 'data-decision': r.decision || '', 'data-done': ['verified', 'applied', 'exists'].includes(r.applied?.state) ? '1' : '0' },
+    return el('tr', { class: 'urow' + (depth ? ' is-sub' : ''), 'data-depth': String(Math.min(depth, 4)), 'data-status': e.status, 'data-decision': r.decision || '', 'data-done': urlDone(r) ? '1' : '0', 'data-failed': urlFailed(r) ? '1' : '0' },
       el('td', { class: 'upage' }, el('b', { text: label, title: label !== r.page ? r.page : null }), el('a', { class: 'uold', href: r.oldUrl, target: '_blank', rel: 'noopener' }, pathText(r.oldPath))),
       el('td', { class: 'ustat' }, status, el('small', { text: r.auto?.reason || '' })),
       el('td', { class: 'unew' }, alts, target, choice, why),
