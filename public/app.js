@@ -4,6 +4,10 @@ const URLST = { none: 'No Redirection Needed', redirect: 'Redirect', attention: 
 // An applied URL decision: done = in place (verified, added, or already there); failed = the apply didn't take.
 const urlDone = r => ['verified', 'applied', 'exists'].includes(r.applied?.state);
 const urlFailed = r => r.applied?.state === 'failed';
+// The tile an old-site redirect counts under, like a page row: Done once it's in place, Redirect Failed if the apply
+// didn't take, else by its status (Ready → Redirect; Check it / Needs attention → Needs Attention; Not used → nothing to do).
+const LTILE = { ready: 'u:redirect', review: 'u:attention', attention: 'u:attention', unused: 'u:none' };
+const ltile = (r, byId) => (urlDone(r) ? 'u:done' : urlFailed(r) ? 'u:failed' : LTILE[leff(r, byId).status] || 'u:attention');
 // Same rules as lib/redirects.mjs keepInfo/effective: the "can keep" check belongs to the page in use.
 const keepOf = r => (r.target !== undefined ? r.keep : r.auto?.keep);
 const eff = r => { const status = r.auto?.status || 'attention'; return { status, target: (status === 'attention' ? r.target : undefined) ?? r.auto?.target ?? '', choice: r.choice || (status !== 'attention' && keepOf(r)?.ok ? 'keep' : 'new') }; };
@@ -363,6 +367,10 @@ function applyFilter() {
   const byId = tab !== 'urls' && templates[tab] ? Object.fromEntries(tplOf(tab).sections.flatMap(s => s.items).map(i => [i.id, i])) : {};
   // A card shows when it matches the tile or was just decided (kept); a container also while one of its children does.
   const showCard = it => tileHas(it) || kept.has(it.id) || kidsOf(tab, it).some(k => kept.has(k.id));
+  // Old-site redirects: under All every one, under another tile the ones that belong to it. Their import box only under All.
+  document.querySelectorAll('.lrow').forEach(r => r.classList.toggle('hidden-by-filter', filter !== 'all' && r.dataset.tile !== filter));
+  document.querySelectorAll('[data-all-only]').forEach(x => { x.hidden = filter !== 'all'; });
+  document.querySelectorAll('.utable-wrap.lt').forEach(w => { w.hidden = !w.querySelector('.lrow:not(.hidden-by-filter)'); });
   document.querySelectorAll('.item, .urow').forEach(r => {
     const st = r.dataset.status;
     // URL rows: u:none / u:redirect / u:attention (scan status, still to do), u:failed, u:done. Checklist items: tileHas() decides.
@@ -383,7 +391,7 @@ function applyFilter() {
   }
   const pickSec = tab !== 'urls' ? secSel[tab] || 'all' : 'all';
   let shown = 0;
-  document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || (!s.dataset.keep && !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter)')); if (!s.hidden) shown++; });
+  document.querySelectorAll('.section').forEach(s => { s.hidden = (pickSec !== 'all' && s.dataset.sec && s.dataset.sec !== pickSec) || (!(s.dataset.keep && filter === 'all') && !s.querySelector('.item:not(.hidden-by-filter), .urow:not(.hidden-by-filter), .lrow:not(.hidden-by-filter)')); if (!s.hidden) shown++; });
   $('secEmpty').hidden = tab === 'urls' || shown > 0;
 }
 
@@ -562,10 +570,13 @@ function renderUrls() {
   // A page whose redirect is in place counts under Done, one whose apply failed under Redirect Failed; the status
   // tiles count only what's still to do.
   const c = { none: 0, redirect: 0, attention: 0 }; rows.filter(r => !urlDone(r) && !urlFailed(r)).forEach(r => c[eff(r).status]++);
-  const done = rows.filter(urlDone).length, failed = rows.filter(urlFailed).length;
+  let done = rows.filter(urlDone).length, failed = rows.filter(urlFailed).length;
+  // The old site's own redirects count the same way (they show under All, and under the tile they belong to).
+  const lrows = u.legacy?.rows || []; const lById = new Map(rows.map(m => [m.id, m]));
+  for (const r of lrows) { const t = ltile(r, lById); if (t === 'u:done') done++; else if (t === 'u:failed') failed++; else c[t.slice(2)]++; }
   const shownU = { 'u:none': c.none, 'u:redirect': c.redirect, 'u:attention': c.attention, 'u:failed': failed, 'u:done': done };
   if (filter !== 'all' && !shownU[filter]) filter = 'all';
-  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length, 'All', 'Every old page'), countTile('u:none', 'c-pass', c.none, URLST.none), countTile('u:redirect', 'c-warn', c.redirect, URLST.redirect), countTile('u:attention', 'c-fail', c.attention, URLST.attention), countTile('u:failed', 'c-fail' + (failed ? ' is-flagged' : ''), failed, 'Redirect Failed', 'Approved redirects that could not be added or that don\u2019t land where they should'), countTile('u:done', 'c-done', done, 'Done', 'Redirects in place and verified')])] : []));
+  $('counts').replaceChildren(...(rows.length ? [el('div', { class: 'count-row' }, [countTile('all', 'c-all', rows.length + lrows.length, 'All', 'Every old page and every redirect imported from the old site'), countTile('u:none', 'c-pass', c.none, URLST.none), countTile('u:redirect', 'c-warn', c.redirect, URLST.redirect), countTile('u:attention', 'c-fail', c.attention, URLST.attention), countTile('u:failed', 'c-fail' + (failed ? ' is-flagged' : ''), failed, 'Redirect Failed', 'Approved redirects that could not be added or that don\u2019t land where they should'), countTile('u:done', 'c-done', done, 'Done', 'Redirects in place and verified')])] : []));
   if (!rows.length) {
     $('sections').replaceChildren(el('div', { class: 'urls-empty' }, el('h2', { text: 'Not run yet' }), el('p', {}, 'Run Tool lists every page of ', el('b', { text: current.referenceUrl.replace(/^https?:\/\//, '') }), ' and checks each old URL on this site. Then you can import the old site\'s redirects.')));
     return;
@@ -648,13 +659,13 @@ function legacySection(u, origin) {
   const forget = name => { if (!confirm(`Remove the redirects imported from ${name}?`)) return; api(`/sites/${current.id}/urls/import/${encodeURIComponent(name)}`, { method: 'DELETE' }).then(r => follow(r.runId)).catch(e => alert(e.message)); };
   const FORMATS = ['Redirection JSON / CSV', 'Yoast CSV', 'Rank Math CSV', 'Any source, target CSV', '.htaccess', 'nginx'];
   const card = files.length
-    ? el('div', { class: 'lcard' },
+    ? el('div', { class: 'lcard', 'data-all-only': '1' },
         el('div', { class: 'lhead' },
           el('div', {}, el('h3', { text: 'Imported from the old site' }), el('p', { text: 'Each redirect points at where its page is now. Approve the ones to keep; they go into Redirection\'s "Migrated from old site" group.' })),
           el('button', { class: 'btn', type: 'button', text: 'Import another file', onclick: () => pick.click() })),
         el('div', { class: 'lfiles' }, files.map(f => el('span', { class: 'lfile' }, el('b', { text: f.name }), el('span', { text: `${f.count ?? ''} rule${f.count === 1 ? '' : 's'}` }), el('button', { type: 'button', class: 'lx', title: `Remove ${f.name}`, 'aria-label': `Remove ${f.name}`, text: '×', onclick: () => forget(f.name) })))),
         (L.notes || []).length ? el('ul', { class: 'linfo' }, L.notes.map(n => el('li', { text: n }))) : null, pick)
-    : el('div', { class: 'lcard lempty' },
+    : el('div', { class: 'lcard lempty', 'data-all-only': '1' },
         el('div', { class: 'licon', 'aria-hidden': 'true', text: '↪' }),
         el('div', { class: 'lbody' },
           el('h3', { text: "Bring over the old site's redirects" }),
@@ -677,13 +688,15 @@ function legacySection(u, origin) {
     const decide = r.auto?.byHand ? el('small', { class: 'lhand', text: 'By hand' }) : el('div', { class: 'fix', role: 'group', 'aria-label': 'Decision' },
       el('button', { type: 'button', 'data-d': 'approve', 'aria-pressed': String(r.decision === 'approve'), disabled: e.target || r.gone ? null : true, title: e.target || r.gone ? '' : 'Pick the target first', text: 'Approve', onclick: () => save(r, { decision: r.decision === 'approve' ? null : 'approve' }) }),
       el('button', { type: 'button', 'data-d': 'decline', 'aria-pressed': String(r.decision === 'decline'), text: 'Decline', onclick: () => save(r, { decision: r.decision === 'decline' ? null : 'decline' }) }));
-    return el('tr', { class: 'lrow', 'data-status': e.status },
+    return el('tr', { class: 'lrow', 'data-status': e.status, 'data-tile': ltile(r, byId) },
       el('td', { class: 'upage' }, el('code', { class: 'lfrom' }, pathText(r.from)), el('small', { class: 'lmeta', text: meta })),
       el('td', { class: 'ustat' }, el('span', { class: `ustatus us-${LCLS[e.status]}`, text: LST[e.status] }), el('small', { text: e.reason || '' })),
       el('td', { class: 'unew' }, target),
       el('td', { class: 'udecide' }, decide, result(r)));
   });
-  const tally = Object.entries(lrows.reduce((c, r) => (c[leff(r, byId).status] = (c[leff(r, byId).status] || 0) + 1, c), {})).map(([k, v]) => `${v} ${LST[k].toLowerCase()}`).join(' · ');
+  // The heading counts them by tile, like the tiles above (an applied one is done, not "ready").
+  const TNAME = { 'u:done': 'done', 'u:failed': 'redirect failed', 'u:redirect': 'redirect', 'u:attention': 'need attention', 'u:none': 'not used' };
+  const tally = Object.entries(lrows.reduce((c, r) => { const t = ltile(r, byId); c[t] = (c[t] || 0) + 1; return c; }, {})).map(([k, v]) => `${v} ${TNAME[k]}`).join(' · ');
   return el('section', { class: 'section', 'data-keep': '1' },
     el('h2', {}, "Old site's redirects", lrows.length ? el('small', { text: tally }) : null),
     card,
